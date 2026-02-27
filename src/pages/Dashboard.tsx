@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Plus, X, ArrowRight, ArrowLeft, FileText, User, Briefcase, GraduationCap, Link as LinkIcon, Code, CheckCircle2, Sparkles } from "lucide-react";
@@ -25,6 +25,63 @@ const Dashboard = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [step, setStep] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const fetchPortfolio = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/portfolio", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.ok) {
+          const body = await res.json();
+          if (body?.data) {
+            setData(body.data as PortfolioData);
+          }
+        }
+      } catch {
+        // ignore, fall back to default
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPortfolio();
+  }, [navigate]);
+
+  const savePortfolio = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await fetch("http://localhost:4000/api/portfolio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+    } catch {
+      // could surface an error UI later
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const addSkill = () => {
     if (skillInput.trim()) {
@@ -79,6 +136,12 @@ const Dashboard = () => {
           <h1 className="mb-2 text-3xl font-bold">Create Your Portfolio</h1>
           <p className="mb-8 text-muted-foreground">Upload your resume or fill in your details below.</p>
         </motion.div>
+
+        {isLoading && (
+          <div className="mb-10 text-sm text-muted-foreground">
+            Loading your saved portfolio...
+          </div>
+        )}
 
         {/* Upload Section */}
         <motion.div
@@ -319,11 +382,15 @@ const Dashboard = () => {
             </Button>
           ) : (
             <Button
-              onClick={() => navigate("/templates")}
+              onClick={async () => {
+                await savePortfolio();
+                navigate("/templates");
+              }}
               size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 gap-2"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 gap-2 disabled:opacity-70"
+              disabled={isSaving}
             >
-              Generate Portfolio
+              {isSaving ? "Saving..." : "Generate Portfolio"}
               <Sparkles className="h-4 w-4" />
             </Button>
           )}
