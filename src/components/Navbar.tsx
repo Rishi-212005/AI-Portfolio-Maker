@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Sparkles, User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, Sparkles, LogOut, Settings, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,15 +14,44 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const isLoggedIn = location.pathname !== "/" && location.pathname !== "/login";
+  const isLoggedIn = !!user;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("auth_user");
+      if (stored) {
+        const parsed = JSON.parse(stored) as { name?: string; email?: string };
+        if (parsed && (parsed.name || parsed.email)) {
+          setUser({
+            name: parsed.name ?? "",
+            email: parsed.email ?? "",
+          });
+        }
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    }
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_user");
+    setUser(null);
+    setProfileOpen(false);
+    navigate("/");
+  };
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "border-b border-border/50 bg-background/90 backdrop-blur-xl shadow-lg shadow-background/20" : "border-b border-border/30 bg-background/60 backdrop-blur-md"}`}>
@@ -59,9 +88,16 @@ const Navbar = () => {
                 className="flex items-center gap-2 rounded-full bg-secondary/50 px-3 py-1.5 text-sm hover:bg-secondary transition-colors"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                  AJ
+                  {user?.name
+                    ?.split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((n) => n[0]?.toUpperCase())
+                    .join("") || "U"}
                 </div>
-                <span className="text-sm font-medium">Alex</span>
+                <span className="text-sm font-medium">
+                  {user?.name || user?.email || "User"}
+                </span>
                 <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${profileOpen ? "rotate-180" : ""}`} />
               </button>
 
@@ -74,18 +110,23 @@ const Navbar = () => {
                     className="absolute right-0 mt-2 w-48 glass-card rounded-xl overflow-hidden border border-border/50 shadow-xl"
                   >
                     <div className="p-3 border-b border-border/30">
-                      <p className="text-sm font-semibold">Alex Johnson</p>
-                      <p className="text-xs text-muted-foreground">alex@email.com</p>
+                      <p className="text-sm font-semibold">
+                        {user?.name || "User"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {user?.email}
+                      </p>
                     </div>
                     <div className="p-1">
                       <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
                         <Settings className="h-4 w-4" /> Settings
                       </button>
-                      <Link to="/" onClick={() => setProfileOpen(false)}>
-                        <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors">
-                          <LogOut className="h-4 w-4" /> Log out
-                        </button>
-                      </Link>
+                      <button
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="h-4 w-4" /> Log out
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -136,11 +177,16 @@ const Navbar = () => {
                   </Link>
                 </>
               ) : (
-                <Link to="/" onClick={() => setIsOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-destructive">
-                    <LogOut className="h-4 w-4 mr-2" /> Log out
-                  </Button>
-                </Link>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-destructive"
+                  onClick={() => {
+                    handleLogout();
+                    setIsOpen(false);
+                  }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Log out
+                </Button>
               )}
             </div>
           </motion.div>

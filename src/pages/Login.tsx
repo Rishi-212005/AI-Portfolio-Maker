@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { FormEvent, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,65 @@ import Navbar from "@/components/Navbar";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (isSubmitting) return;
+
+    if (isSignUp && !name.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const endpoint = isSignUp ? "/api/auth/register" : "/api/auth/login";
+      const res = await fetch(`http://localhost:4000${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: isSignUp ? name : undefined,
+          email,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Something went wrong");
+      }
+
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
+      if (data.user) {
+        localStorage.setItem("auth_user", JSON.stringify(data.user));
+      }
+
+      navigate("/dashboard");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to authenticate";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,28 +104,51 @@ const Login = () => {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             {isSignUp && (
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Full Name" className="h-11 pl-10 bg-secondary/50 border-border/40" />
+                <Input
+                  placeholder="Full Name"
+                  className="h-11 pl-10 bg-secondary/50 border-border/40"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
             )}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="email" placeholder="Email" className="h-11 pl-10 bg-secondary/50 border-border/40" />
+              <Input
+                type="email"
+                placeholder="Email"
+                className="h-11 pl-10 bg-secondary/50 border-border/40"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="password" placeholder="Password" className="h-11 pl-10 bg-secondary/50 border-border/40" />
+              <Input
+                type="password"
+                placeholder="Password"
+                className="h-11 pl-10 bg-secondary/50 border-border/40"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
 
-            <Link to="/dashboard">
-              <Button className="mt-2 w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-                {isSignUp ? "Create Account" : "Sign In"}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            {error && (
+              <p className="text-sm text-red-500">{error}</p>
+            )}
+
+            <Button
+              type="submit"
+              className="mt-2 w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (isSignUp ? "Creating account..." : "Signing in...") : isSignUp ? "Create Account" : "Sign In"}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
