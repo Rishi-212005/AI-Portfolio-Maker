@@ -5,6 +5,7 @@ import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
+import { API_URL } from "@/config";
 
 const Login = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -34,7 +35,7 @@ const Login = () => {
 
     try {
       const endpoint = isSignUp ? "/api/auth/register" : "/api/auth/login";
-      const res = await fetch(`http://localhost:4000${endpoint}`, {
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
