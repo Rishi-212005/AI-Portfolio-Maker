@@ -12,6 +12,7 @@ import DraggablePortfolio, { type SectionId } from "@/components/DraggablePortfo
 import PortfolioRenderer from "@/components/PortfolioRenderer";
 import JSZip from "jszip";
 import { generateStaticPortfolio } from "@/lib/staticGenerator";
+import { API_URL } from "@/config";
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -65,7 +66,7 @@ const Preview = () => {
     if (!token) return;
     setPortfolioLoadError(false);
     try {
-      const res = await fetch("http://localhost:4000/api/portfolio", {
+      const res = await fetch(`${API_URL}/api/portfolio`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -98,7 +99,7 @@ const Preview = () => {
     const token = localStorage.getItem("auth_token");
     if (!token) return;
     try {
-      await fetch("http://localhost:4000/api/portfolio", {
+      await fetch(`${API_URL}/api/portfolio`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +120,7 @@ const Preview = () => {
     setIsTyping(true);
 
     try {
-      const res = await fetch("http://localhost:4000/api/ai/edit", {
+      const res = await fetch(`${API_URL}/api/ai/edit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,7 +145,7 @@ const Preview = () => {
       }
     } catch (err) {
       console.error("AI edit request failed:", err);
-      setMessages((prev) => [...prev, { role: "ai", content: "❌ Network error: Could not reach PortGen AI server. Please make sure the server is running on http://localhost:4000", timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { role: "ai", content: `❌ Network error: Could not reach PortGen AI server. Please make sure the server is running on ${API_URL}`, timestamp: new Date() }]);
     } finally {
       setIsTyping(false);
     }
