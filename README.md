@@ -62,14 +62,33 @@ npm install
 cd ..
 ```
 
-### 2. Configure Environment Variables
+### 2. Configure Environment Variables & Safety Settings
+
+To ensure security, all environment configuration files are ignored by Git (configured in `.gitignore`). Collaborators must create their own local configuration files.
+
+#### A. Backend Configuration (with Gemini API Key)
 Create a `.env` file inside the `server/` directory:
 ```env
 PORT=4000
 JWT_SECRET=your-super-secret-key-change-me
 MONGODB_URI=your-mongodb-atlas-connection-string
-GEMINI_API_KEY=your-gemini-api-key
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
+*Note: If `GEMINI_API_KEY` is not provided, the server automatically defaults to an offline demo mode so collaborators can still test layouts locally.*
+
+#### B. Frontend Connection Configuration (Vite Backend URL)
+By default, the React frontend connects to the backend API at `http://localhost:4000`. 
+
+If your backend is hosted online, or you/your collaborators run it on a different port, you can configure it safely using one of these options:
+1.  **Vite Environment Variables (Recommended):** Create a `.env` file in the root folder of the project:
+    ```env
+    VITE_API_URL=https://your-hosted-backend-api.com
+    ```
+2.  **Config Customization:** Alternatively, view and modify the default fallback directly in [src/config.ts](file:///e:/MY-PROJECTS/AI-Portfolio-Maker/src/config.ts):
+    ```typescript
+    export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+    ```
+    *This configuration file centralizes the connection string for collaborators to easily discover and configure.*
 
 ### 3. Start Dev Servers
 You can run both client and server development processes in parallel from the root folder:
