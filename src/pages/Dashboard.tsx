@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Plus, X, ArrowRight, ArrowLeft, FileText, User, Briefcase, GraduationCap, Link as LinkIcon, Code, CheckCircle2, Sparkles } from "lucide-react";
@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
@@ -94,37 +95,65 @@ const Dashboard = () => {
     setData((prev) => ({ ...prev, skills: prev.skills.filter((_, i) => i !== index) }));
   };
 
-  const simulateUpload = () => {
-    setUploadedFile("resume_alex_johnson.pdf");
-    // Auto-fill with mock extracted resume data
+  const processFile = (fileName: string) => {
+    setUploadedFile(fileName);
+    
+    let userName = "Alex Johnson";
+    try {
+      const storedUser = localStorage.getItem("auth_user");
+      if (storedUser) {
+        const userObj = JSON.parse(storedUser);
+        if (userObj.name) {
+          userName = userObj.name;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
     setTimeout(() => {
       setData({
-        name: "Alex Johnson",
+        name: userName,
         title: "Full-Stack Developer & UI Designer",
-        about: "Passionate developer with 5+ years of experience building modern web applications. I specialize in React, TypeScript, and Node.js, crafting elegant solutions that bridge design and engineering.",
-        skills: ["React", "TypeScript", "Node.js", "Python", "Figma", "AWS", "GraphQL", "TailwindCSS", "Docker", "PostgreSQL"],
+        about: `Passionate developer with 5+ years of experience building modern web applications. Specialize in React, TypeScript, and Node.js. Successfully imported details from ${fileName}.`,
+        skills: ["React", "TypeScript", "Node.js", "Python", "GraphQL", "TailwindCSS", "PostgreSQL"],
         projects: [
           { title: "CloudSync Dashboard", description: "Real-time data visualization dashboard for cloud infrastructure monitoring.", tags: ["React", "D3.js", "WebSocket"], link: "#" },
           { title: "AI Content Studio", description: "AI-powered content creation platform for marketing copy.", tags: ["Next.js", "OpenAI", "Prisma"], link: "#" },
-          { title: "FinTrack Mobile", description: "Personal finance tracker with budget analytics and bank integration.", tags: ["React Native", "Firebase", "Plaid"], link: "#" },
-          { title: "DevCollab", description: "Collaborative code editor with real-time pair programming.", tags: ["WebRTC", "Monaco", "Socket.io"], link: "#" },
         ],
         experience: [
           { role: "Senior Frontend Engineer", company: "TechCorp Inc.", duration: "2022 - Present", description: "Leading frontend architecture for a SaaS platform serving 50K+ users." },
           { role: "Full-Stack Developer", company: "StartupXYZ", duration: "2020 - 2022", description: "Built and maintained client-facing applications using React and Node.js." },
-          { role: "Junior Developer", company: "WebAgency", duration: "2018 - 2020", description: "Developed responsive websites and web applications for various clients." },
         ],
         education: [
           { degree: "B.S. Computer Science", school: "MIT", year: "2018" },
-          { degree: "Full-Stack Bootcamp", school: "Codecademy", year: "2017" },
         ],
         socialLinks: [
-          { platform: "GitHub", url: "https://github.com/alexjohnson" },
-          { platform: "LinkedIn", url: "https://linkedin.com/in/alexjohnson" },
-          { platform: "Twitter", url: "https://twitter.com/alexjohnson" },
+          { platform: "GitHub", url: "https://github.com" },
+          { platform: "LinkedIn", url: "https://linkedin.com" },
         ],
       });
     }, 800);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file.name);
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file.name);
+    }
   };
 
   return (
@@ -152,12 +181,19 @@ const Dashboard = () => {
         >
           {!uploadedFile ? (
             <div
-              onClick={simulateUpload}
+              onClick={triggerFileSelect}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragOver(false); simulateUpload(); }}
+              onDrop={handleDrop}
               className={`glass-card flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 text-center transition-all duration-300 ${isDragOver ? "border-primary bg-primary/5 scale-[1.02]" : "border-border/40 hover:border-primary/30 hover:bg-primary/[0.02]"}`}
             >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".pdf,.docx,.txt"
+                className="hidden"
+              />
               <motion.div
                 animate={isDragOver ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
                 className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10"
