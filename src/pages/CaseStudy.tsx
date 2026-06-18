@@ -249,7 +249,7 @@ const CaseStudy = () => {
   );
 };
 
-const Section = ({ icon: Icon, title, color, children }: { icon: any; title: string; color: string; children: React.ReactNode }) => (
+const Section = ({ icon: Icon, title, color, children }: { icon: React.ElementType; title: string; color: string; children: React.ReactNode }) => (
   <motion.section {...fadeIn}>
     <div className="mb-6 flex items-center gap-3">
       <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-${color}/10`}>
