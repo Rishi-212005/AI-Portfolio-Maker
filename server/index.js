@@ -293,8 +293,19 @@ Respond with raw JSON only.`;
     });
   } catch (err) {
     console.error("Gemini edit error:", err);
-    return res.status(500).json({
-      message: "AI customizer failed. Ensure your GEMINI_API_KEY is valid.",
+
+    // Give specific, user-friendly error messages
+    let userMessage = "AI customizer failed. Please try again.";
+    if (err.status === 429) {
+      userMessage = "⏳ Rate limit reached — please wait a few seconds and try again. (Gemini free-tier limit)";
+    } else if (err.status === 400 || err.status === 403) {
+      userMessage = "❌ Invalid Gemini API key. Please check GEMINI_API_KEY in server/.env and restart the server.";
+    } else if (err.status === 404) {
+      userMessage = "❌ Gemini model not found. Please check server/index.js for the correct model name.";
+    }
+
+    return res.status(err.status === 429 ? 429 : 500).json({
+      message: userMessage,
       error: err.message
     });
   }
