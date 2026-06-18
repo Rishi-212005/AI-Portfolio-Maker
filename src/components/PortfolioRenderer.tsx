@@ -110,7 +110,17 @@ const SocialIcons = ({ links, color }: { links: PortfolioData["socialLinks"]; co
   </div>
 );
 
-const CommonContactForm = ({ buttonStyle, inputStyle, buttonColor }: { buttonStyle?: string; inputStyle?: string; buttonColor?: string }) => {
+const CommonContactForm = ({ 
+  buttonStyle, 
+  inputStyle, 
+  buttonColor, 
+  buttonTextColor 
+}: { 
+  buttonStyle?: string; 
+  inputStyle?: string; 
+  buttonColor?: string; 
+  buttonTextColor?: string; 
+}) => {
   const [submitted, setSubmitted] = useState(false);
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +140,10 @@ const CommonContactForm = ({ buttonStyle, inputStyle, buttonColor }: { buttonSty
       <button
         type="submit"
         className={buttonStyle || "w-full py-2.5 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/95 transition-colors"}
-        style={buttonColor ? { backgroundColor: buttonColor, color: "#fff" } : undefined}
+        style={buttonColor || buttonTextColor ? { 
+          backgroundColor: buttonColor, 
+          color: buttonTextColor || "#fff" 
+        } : undefined}
       >
         Send Message
       </button>
@@ -1808,7 +1821,8 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
                     <CommonContactForm 
                       inputStyle={`w-full p-2.5 border rounded-none text-xs focus:outline-none font-mono ${isDark ? "bg-zinc-900 border-zinc-800 text-white focus:border-zinc-700" : "bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-zinc-300"}`}
                       buttonStyle="w-full py-2.5 font-extrabold rounded-none uppercase tracking-widest text-xs transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: themeColor, color: isDark ? "#020617" : "#ffffff" } as React.CSSProperties}
+                      buttonColor={themeColor}
+                      buttonTextColor={isDark ? "#020617" : "#ffffff"}
                     />
                   </div>
                 </motion.section>
@@ -2897,7 +2911,7 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
 
   const sectionVariants = {
     hidden: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: "easeOut" } },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
   };
 
   return (
