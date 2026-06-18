@@ -9,6 +9,7 @@ import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
 import { defaultPortfolioData, mockChatResponses, templateList, type PortfolioData } from "@/data/mockData";
 import DraggablePortfolio, { type SectionId } from "@/components/DraggablePortfolio";
+import PortfolioRenderer from "@/components/PortfolioRenderer";
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -32,11 +33,12 @@ const quickPrompts = [
   "Add animations",
 ];
 
-const defaultSectionOrder: SectionId[] = ["about", "skills", "projects", "experience", "education", "contact"];
+const defaultSectionOrder: SectionId[] = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
 
 const Preview = () => {
   const { templateId } = useParams();
   const template = templateList.find((t) => t.id === templateId) || templateList[0];
+  const [viewMode, setViewMode] = useState<"live" | "edit">("live");
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "ai", content: `🎉 Your portfolio is ready using the "${template.name}" template! Try:\n\n• Chat commands to customize content\n• Drag sections on the right to reorder\n• Use theme controls above\n• Click "AI Rewrite" to polish text`, timestamp: new Date() },
   ]);
@@ -53,53 +55,97 @@ const Preview = () => {
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(defaultSectionOrder);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [portfolioData, setPortfolioData] = useState<PortfolioData>(defaultPortfolioData);
+  const [portfolioLoaded, setPortfolioLoaded] = useState(false);
+  const [portfolioLoadError, setPortfolioLoadError] = useState(false);
+
+  const fetchPortfolio = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    setPortfolioLoadError(false);
+    try {
+      const res = await fetch("http://localhost:4000/api/portfolio", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.data) {
+          setPortfolioData(body.data);
+          setPortfolioLoaded(true);
+        } else {
+          setPortfolioLoadError(true);
+        }
+      } else {
+        setPortfolioLoadError(true);
+        console.warn("Portfolio fetch returned:", res.status);
+      }
+    } catch (err) {
+      setPortfolioLoadError(true);
+      console.error("Failed to fetch portfolio data", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPortfolio();
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    const fetchPortfolio = async () => {
-      const token = localStorage.getItem("auth_token");
-      if (!token) return;
-      try {
-        const res = await fetch("http://localhost:4000/api/portfolio", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (res.ok) {
-          const body = await res.json();
-          if (body?.data) {
-            setPortfolioData(body.data);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch portfolio data", err);
-      }
-    };
-    fetchPortfolio();
-  }, []);
+  const savePortfolio = async (updatedData: PortfolioData) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    try {
+      await fetch("http://localhost:4000/api/portfolio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedData),
+      });
+    } catch (err) {
+      console.error("Failed to save portfolio data automatically", err);
+    }
+  };
 
-  const sendMessage = (text?: string) => {
+  const sendMessage = async (text?: string) => {
     const userMsg = (text || input).trim();
     if (!userMsg) return;
     setMessages((prev) => [...prev, { role: "user", content: userMsg, timestamp: new Date() }]);
     setInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const lower = userMsg.toLowerCase();
-      let response = mockChatResponses.default;
-      for (const key of Object.keys(mockChatResponses)) {
-        if (lower.includes(key)) {
-          response = mockChatResponses[key];
-          break;
+    try {
+      const res = await fetch("http://localhost:4000/api/ai/edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          portfolioData,
+          message: userMsg
+        }),
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.updatedData && body?.explanation) {
+          setPortfolioData(body.updatedData);
+          setMessages((prev) => [...prev, { role: "ai", content: body.explanation, timestamp: new Date() }]);
+          // Auto-save updated content
+          savePortfolio(body.updatedData);
+        } else {
+          setMessages((prev) => [...prev, { role: "ai", content: "🤖 Received an invalid response structure from PortGen AI. Please try again.", timestamp: new Date() }]);
         }
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setMessages((prev) => [...prev, { role: "ai", content: `❌ PortGen AI returned an error: ${errorData.message || "Unknown error"}`, timestamp: new Date() }]);
       }
-      setMessages((prev) => [...prev, { role: "ai", content: response, timestamp: new Date() }]);
+    } catch (err) {
+      console.error("AI edit request failed:", err);
+      setMessages((prev) => [...prev, { role: "ai", content: "❌ Network error: Could not reach PortGen AI server. Please make sure the server is running on http://localhost:4000", timestamp: new Date() }]);
+    } finally {
       setIsTyping(false);
-    }, 1200 + Math.random() * 800);
+    }
   };
 
   const clearChat = () => {
@@ -169,6 +215,20 @@ const Preview = () => {
               </Button>
             </div>
           </div>
+
+          {/* Data source status */}
+          {portfolioLoaded && (
+            <div className="border-b border-border/30 px-4 py-2 flex items-center gap-2 text-xs text-green-500 bg-green-500/5">
+              <Check className="h-3.5 w-3.5 shrink-0" />
+              Portfolio data loaded from your database
+            </div>
+          )}
+          {portfolioLoadError && (
+            <div className="border-b border-border/30 px-4 py-2 flex items-center justify-between gap-2 text-xs text-yellow-500 bg-yellow-500/5">
+              <span className="flex items-center gap-1.5"><Bot className="h-3.5 w-3.5" /> Showing demo data — your saved portfolio could not be loaded</span>
+              <button onClick={fetchPortfolio} className="underline hover:text-yellow-400 shrink-0">Retry</button>
+            </div>
+          )}
 
           {/* Theme controls */}
           <div className="border-b border-border/30 px-4 py-3 space-y-3">
@@ -289,13 +349,47 @@ const Preview = () => {
         </div>
 
         {/* Preview Panel */}
-        <div className="flex-1 overflow-y-auto bg-secondary/20">
-          <DraggablePortfolio
-            templateId={template.id}
-            data={portfolioData}
-            sectionOrder={sectionOrder}
-            onReorder={handleReorder}
-          />
+        <div className="flex-1 flex flex-col h-full bg-secondary/10 overflow-hidden">
+          {/* View Mode Tabs */}
+          <div className="flex items-center justify-between border-b border-border/30 bg-background px-6 py-2.5 shrink-0">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preview window</span>
+            <div className="flex bg-secondary/50 rounded-lg p-0.5 border border-border/30">
+              <button
+                onClick={() => setViewMode("live")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${viewMode === "live" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Live View
+              </button>
+              <button
+                onClick={() => setViewMode("edit")}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${viewMode === "edit" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Rearrange Sections
+              </button>
+            </div>
+          </div>
+
+          {/* Render Area */}
+          <div className="flex-1 overflow-y-auto scroll-smooth">
+            {viewMode === "live" ? (
+              <PortfolioRenderer
+                templateId={template.id}
+                data={portfolioData}
+                isDark={isDarkPreview}
+                themeColor={themeColors[selectedColor].value}
+                sectionOrder={sectionOrder}
+              />
+            ) : (
+              <DraggablePortfolio
+                templateId={template.id}
+                data={portfolioData}
+                sectionOrder={sectionOrder}
+                onReorder={handleReorder}
+                isDark={isDarkPreview}
+                themeColor={themeColors[selectedColor].value}
+              />
+            )}
+          </div>
         </div>
       </div>
 
