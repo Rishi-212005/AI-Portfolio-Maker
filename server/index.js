@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -44,7 +45,8 @@ const portfolioSchema = new mongoose.Schema({
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 function generateToken(user) {
   return jwt.sign(
@@ -195,16 +197,101 @@ app.post("/api/portfolio", requireAuth, async (req, res) => {
   }
 
   try {
-    await Portfolio.findOneAndUpdate(
+    const result = await Portfolio.findOneAndUpdate(
       { user_id: userId },
       { data_json: data, updated_at: new Date() },
       { upsert: true, new: true }
     );
 
-    return res.status(200).json({ message: "Portfolio saved" });
+    console.log(`[Portfolio] Saved for user ${userId} — keys: ${Object.keys(data).join(", ")}`);
+    return res.status(200).json({ message: "Portfolio saved", id: result._id });
   } catch (err) {
     console.error("Save portfolio error", err);
-    return res.status(500).json({ message: "Failed to save portfolio" });
+    return res.status(500).json({ message: "Failed to save portfolio", error: err.message });
+  }
+});
+
+app.post("/api/ai/edit", async (req, res) => {
+  const { portfolioData, message } = req.body;
+  if (!portfolioData || !message) {
+    return res.status(400).json({ message: "portfolioData and message are required" });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  const isDemoKey = !apiKey || apiKey === "your-gemini-api-key-here" || apiKey.trim() === "";
+
+  if (isDemoKey) {
+    // Return a friendly fallback response
+    let updatedData = JSON.parse(JSON.stringify(portfolioData));
+    let explanation = "⚠️ PortGen AI is running in local offline demo mode because GEMINI_API_KEY is not configured in your server's .env file. Please add your key to enable fully dynamic AI portfolio updates!";
+
+    const lower = message.toLowerCase();
+    if (lower.includes("name to")) {
+      const match = message.match(/name to\s+([a-zA-Z0-9\s]+)/i);
+      if (match && match[1]) {
+        updatedData.name = match[1].trim();
+        explanation = `👤 Local offline edit: Updated name to "${updatedData.name}". Set up GEMINI_API_KEY to unlock full AI capability!`;
+      }
+    } else if (lower.includes("about") || lower.includes("bio") || lower.includes("rewrite")) {
+      updatedData.about = "Innovative full-stack engineer specializing in developing premium animated web systems, high-performance secure backends, and responsive UI components. (Offline demo rewrite)";
+      explanation = `📝 Local offline edit: Rewrote biography/about section. Set up GEMINI_API_KEY to unlock full AI capability!`;
+    } else if (lower.includes("skill")) {
+      const skillMatch = message.match(/add skill\s+([a-zA-Z0-9\s#\+\.\-]+)/i) || message.match(/skill\s+([a-zA-Z0-9\s#\+\.\-]+)/i);
+      if (skillMatch && skillMatch[1]) {
+        const newSkill = skillMatch[1].trim();
+        if (!updatedData.skills.includes(newSkill)) {
+          updatedData.skills = [...updatedData.skills, newSkill];
+        }
+        explanation = `🛠️ Local offline edit: Added skill "${newSkill}". Set up GEMINI_API_KEY to unlock full AI capability!`;
+      }
+    } else if (lower.includes("color") || lower.includes("theme")) {
+      explanation = `🎨 Local offline edit: I see you want to change colors. You can use the quick theme color buttons at the top of the AI Editor panel!`;
+    }
+
+    return res.json({ updatedData, explanation });
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            updatedData: { type: "OBJECT" },
+            explanation: { type: "STRING" }
+          },
+          required: ["updatedData", "explanation"]
+        }
+      }
+    });
+
+    const prompt = `You are PortGen AI, a professional portfolio editing agent. You take the current portfolio JSON and a user's natural language instruction, and return a JSON object with:
+1. "updatedData": The fully updated portfolio data object matching the original schema. Do not omit any fields or change structure; make the requested edits and preserve all other fields exactly.
+2. "explanation": A friendly message detailing the changes you made.
+
+Current portfolio data:
+${JSON.stringify(portfolioData, null, 2)}
+
+User instruction:
+"${message}"`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    const parsed = JSON.parse(responseText);
+
+    return res.json({
+      updatedData: parsed.updatedData,
+      explanation: parsed.explanation
+    });
+  } catch (err) {
+    console.error("Gemini edit error:", err);
+    return res.status(500).json({
+      message: "AI customizer failed. Ensure your GEMINI_API_KEY is valid.",
+      error: err.message
+    });
   }
 });
 
