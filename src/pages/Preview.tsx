@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import BackButton from "@/components/BackButton";
-import { defaultPortfolioData, mockChatResponses, templateList } from "@/data/mockData";
+import { defaultPortfolioData, mockChatResponses, templateList, type PortfolioData } from "@/data/mockData";
 import DraggablePortfolio, { type SectionId } from "@/components/DraggablePortfolio";
 
 interface ChatMessage {
@@ -52,10 +52,34 @@ const Preview = () => {
   const [isRewriting, setIsRewriting] = useState(false);
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(defaultSectionOrder);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [portfolioData, setPortfolioData] = useState<PortfolioData>(defaultPortfolioData);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      const token = localStorage.getItem("auth_token");
+      if (!token) return;
+      try {
+        const res = await fetch("http://localhost:4000/api/portfolio", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const body = await res.json();
+          if (body?.data) {
+            setPortfolioData(body.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch portfolio data", err);
+      }
+    };
+    fetchPortfolio();
+  }, []);
 
   const sendMessage = (text?: string) => {
     const userMsg = (text || input).trim();
@@ -268,7 +292,7 @@ const Preview = () => {
         <div className="flex-1 overflow-y-auto bg-secondary/20">
           <DraggablePortfolio
             templateId={template.id}
-            data={defaultPortfolioData}
+            data={portfolioData}
             sectionOrder={sectionOrder}
             onReorder={handleReorder}
           />

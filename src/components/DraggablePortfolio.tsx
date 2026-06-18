@@ -87,106 +87,825 @@ const DraggablePortfolio = ({ templateId, data, sectionOrder, onReorder }: Props
 
 /* Renders a single section of the portfolio based on template + section ID */
 const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionId; templateId: string; data: PortfolioData }) => {
-  // Use inline styles matching the template's design language
-  const isDark = ["minimal-dark", "neon-cyberpunk", "glassmorphism", "gradient-aurora", "creative-colorful"].includes(templateId);
-  const bg = isDark ? "hsl(222 47% 5%)" : "hsl(0 0% 98%)";
-  const fg = isDark ? "hsl(210 40% 96%)" : "hsl(222 47% 11%)";
   const accent = getAccent(templateId);
-  const muted = isDark ? "hsl(215 20% 55%)" : "hsl(215 16% 47%)";
 
-  const wrapStyle: React.CSSProperties = { background: bg, color: fg, padding: "2rem 1.5rem" };
-
-  switch (sectionId) {
-    case "about":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>About</h2>
-          <p className="leading-relaxed" style={{ color: muted }}>{data.about}</p>
-        </div>
-      );
-    case "skills":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>Skills</h2>
-          <div className="flex flex-wrap gap-2">
-            {data.skills.map((s) => (
-              <span key={s} className="rounded-md px-3 py-1 text-sm" style={{ background: `${accent}15`, color: accent, border: `1px solid ${accent}30` }}>{s}</span>
-            ))}
-          </div>
-        </div>
-      );
-    case "projects":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>Projects</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {data.projects.map((p) => (
-              <div key={p.title} className="rounded-xl p-4" style={{ background: isDark ? "hsl(222 30% 9%)" : "hsl(0 0% 100%)", border: `1px solid ${isDark ? "hsl(222 20% 15%)" : "hsl(220 13% 91%)"}` }}>
-                <h3 className="mb-1 font-semibold text-sm">{p.title}</h3>
-                <p className="text-xs" style={{ color: muted }}>{p.description}</p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {p.tags.map((tag) => (
-                    <span key={tag} className="rounded text-[10px] px-1.5 py-0.5" style={{ background: `${accent}10`, color: accent }}>{tag}</span>
+  // Helper renderer for each layout style
+  const renderContent = () => {
+    switch (templateId) {
+      case "tech-minimalist":
+        return (
+          <div className="bg-slate-950 text-slate-100 font-mono p-8 border border-slate-800 relative bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] transition-all duration-300">
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" /> // USER ABOUT_ME
+                </h2>
+                <p className="leading-relaxed text-sm text-slate-400">{data.about}</p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4">// CORE SKILLS</h2>
+                <div className="flex flex-wrap gap-2">
+                  {data.skills.map((s) => (
+                    <span key={s} className="bg-cyan-950/20 text-cyan-400 border border-cyan-800/40 rounded-sm px-2.5 py-1 text-xs">{s}</span>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      );
-    case "experience":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>Experience</h2>
-          <div className="space-y-4">
-            {data.experience.map((e) => (
-              <div key={e.role + e.company} className="border-l-2 pl-4" style={{ borderColor: `${accent}40` }}>
-                <h3 className="font-semibold text-sm">{e.role}</h3>
-                <p className="text-xs" style={{ color: accent }}>{e.company} · {e.duration}</p>
-                <p className="mt-1 text-xs" style={{ color: muted }}>{e.description}</p>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4">// PROJECTS LIST</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="bg-slate-900/40 border border-slate-800 p-4 rounded-md hover:border-cyan-800/60 transition-colors">
+                      <h3 className="font-bold text-sm text-slate-200 mb-1">{p.title}</h3>
+                      <p className="text-xs text-slate-400 mb-2">{p.description}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] text-cyan-500/80 bg-cyan-950/10 px-1.5 py-0.5 rounded-sm">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4">// PROFESSIONAL EXP</h2>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role + e.company} className="border-l border-cyan-800/60 pl-4">
+                      <h3 className="font-bold text-sm text-slate-200">{e.role}</h3>
+                      <p className="text-xs text-cyan-400 mb-1">{e.company} · {e.duration}</p>
+                      <p className="text-xs text-slate-400">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4">// ACADEMICS</h2>
+                <div className="space-y-3">
+                  {data.education.map((edu) => (
+                    <div key={edu.degree}>
+                      <p className="font-bold text-sm text-slate-200">{edu.degree}</p>
+                      <p className="text-xs text-slate-400">{edu.school} · {edu.year}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-cyan-400 text-sm font-bold uppercase tracking-widest mb-4">// SOCIAL LINK_MAP</h2>
+                <div className="flex gap-4">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="text-xs text-cyan-500 hover:text-cyan-400 cursor-pointer">{l.platform}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      );
-    case "education":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>Education</h2>
-          {data.education.map((edu) => (
-            <div key={edu.degree} className="mb-2">
-              <p className="font-medium text-sm">{edu.degree}</p>
-              <p className="text-xs" style={{ color: muted }}>{edu.school} · {edu.year}</p>
+        );
+
+      case "retro-terminal":
+        return (
+          <div className="bg-black text-emerald-400 font-mono p-8 border border-emerald-950 relative shadow-inner select-none">
+            <div className="text-[10px] text-emerald-600 mb-4 font-mono select-none">
+              Last login: {new Date().toDateString()} on ttys001
             </div>
-          ))}
-        </div>
-      );
-    case "contact":
-      return (
-        <div style={wrapStyle}>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest" style={{ color: accent }}>Connect</h2>
-          <div className="flex gap-4">
-            {data.socialLinks.map((l) => (
-              <span key={l.platform} className="text-sm" style={{ color: accent }}>{l.platform}</span>
-            ))}
+            {sectionId === "about" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ cat about.md</p>
+                <p className="leading-relaxed text-sm">{data.about}<span className="inline-block w-2 h-4 bg-emerald-400 ml-1 animate-pulse" /></p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ list-skills --all</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  {data.skills.map((s) => (
+                    <span key={s} className="before:content-['[x]_']">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ get-projects</p>
+                <div className="space-y-4">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="border border-emerald-900/50 p-3 bg-black/40">
+                      <p className="font-bold text-sm text-emerald-300">File: {p.title.toLowerCase().replace(/\s+/g, "_")}.cfg</p>
+                      <p className="text-xs mt-1 text-emerald-400/80">{p.description}</p>
+                      <p className="text-[10px] mt-2 text-emerald-600">Tags: {p.tags.join(", ")}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ get-experience</p>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role}>
+                      <p className="text-sm font-semibold">&gt;&gt; {e.role} @ {e.company}</p>
+                      <p className="text-xs text-emerald-600">{e.duration}</p>
+                      <p className="text-xs mt-1 text-emerald-400/90">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ query-education</p>
+                {data.education.map((edu) => (
+                  <p key={edu.degree} className="text-sm">- {edu.degree} ({edu.school}, {edu.year})</p>
+                ))}
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ connect-net</p>
+                <div className="flex gap-4 text-xs font-bold text-emerald-300">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform}>[{l.platform}]</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      );
-    default:
-      return null;
-  }
+        );
+
+      case "glass-aurora":
+        return (
+          <div className="relative p-8 overflow-hidden rounded-2xl bg-slate-950 text-slate-100 border border-slate-900 shadow-xl transition-all duration-300 hover:border-slate-800/80">
+            {/* Aurora backdrop glow spots */}
+            <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-600/10 rounded-full blur-[70px] pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-cyan-600/10 rounded-full blur-[70px] pointer-events-none" />
+            
+            <div className="relative backdrop-blur-xl bg-slate-900/50 border border-slate-700/20 p-6 rounded-xl shadow-lg">
+              {sectionId === "about" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">About Me</h2>
+                  <p className="leading-relaxed text-sm text-slate-300">{data.about}</p>
+                </div>
+              )}
+              {sectionId === "skills" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">Skills</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {data.skills.map((s) => (
+                      <span key={s} className="rounded-full bg-slate-800/50 backdrop-blur-md px-3.5 py-1.5 text-xs text-purple-300 border border-purple-500/10 shadow-inner">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "projects" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">Featured Projects</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {data.projects.map((p) => (
+                      <div key={p.title} className="rounded-xl bg-slate-950/45 border border-slate-800/40 p-4 shadow-md hover:border-slate-700/60 transition-colors">
+                        <h3 className="font-bold text-sm text-slate-200 mb-1">{p.title}</h3>
+                        <p className="text-xs text-slate-400 mb-2">{p.description}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {p.tags.map((tag) => (
+                            <span key={tag} className="text-[9px] text-cyan-300/80 bg-cyan-950/20 px-1.5 py-0.5 rounded-sm">{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "experience" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">Journey</h2>
+                  <div className="space-y-4">
+                    {data.experience.map((e) => (
+                      <div key={e.role} className="border-l border-purple-800/30 pl-4">
+                        <h3 className="font-bold text-sm text-slate-200">{e.role}</h3>
+                        <p className="text-xs text-cyan-300 mb-1">{e.company} · {e.duration}</p>
+                        <p className="text-xs text-slate-400">{e.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "education" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">Academics</h2>
+                  <div className="space-y-2">
+                    {data.education.map((edu) => (
+                      <div key={edu.degree}>
+                        <p className="font-semibold text-sm text-slate-200">{edu.degree}</p>
+                        <p className="text-xs text-slate-400">{edu.school} · {edu.year}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "contact" && (
+                <div>
+                  <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400 text-base font-bold uppercase tracking-widest mb-4">Connect</h2>
+                  <div className="flex gap-4 text-xs font-semibold text-purple-300">
+                    {data.socialLinks.map((l) => (
+                      <span key={l.platform} className="hover:text-cyan-300 cursor-pointer">{l.platform}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case "cyberpunk-glitch":
+        return (
+          <div className="bg-zinc-950 text-zinc-100 font-mono p-8 border-l-4 border-fuchsia-500 relative overflow-hidden bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[size:100%_4px,3px_100%]">
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// OVERVIEW_INFO</h2>
+                <p className="leading-relaxed text-sm text-zinc-400 border border-fuchsia-500/10 p-4 bg-zinc-900/40">{data.about}</p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// UPLINK_CHIPS</h2>
+                <div className="flex flex-wrap gap-2">
+                  {data.skills.map((s) => (
+                    <span key={s} className="border border-fuchsia-500/40 bg-fuchsia-950/10 text-fuchsia-400 px-3 py-1 text-xs hover:bg-cyan-950/20 hover:border-cyan-500/40 transition-colors select-none">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// CODE_REPOS</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="border border-zinc-800 p-4 bg-zinc-900/60 shadow-md">
+                      <h3 className="font-bold text-sm text-cyan-400 uppercase tracking-wide">{p.title}</h3>
+                      <p className="text-xs mt-1 text-zinc-400">{p.description}</p>
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] border border-fuchsia-500/20 text-fuchsia-500/80 px-1.5 py-0.5 rounded-sm">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// HISTORY_LOGS</h2>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role} className="border-l border-fuchsia-500/50 pl-4 bg-zinc-900/20 p-2">
+                      <h3 className="font-semibold text-sm text-cyan-300 uppercase">{e.role}</h3>
+                      <p className="text-xs text-fuchsia-400 mb-1">{e.company} · {e.duration}</p>
+                      <p className="text-xs text-zinc-400">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// EDUCATION_FILE</h2>
+                {data.education.map((edu) => (
+                  <div key={edu.degree} className="border border-zinc-800 p-3 mb-2 bg-zinc-900/30">
+                    <p className="font-bold text-sm text-zinc-200">{edu.degree}</p>
+                    <p className="text-xs text-zinc-400">{edu.school} · {edu.year}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 font-black uppercase tracking-[0.2em] text-sm mb-4">// CONNECT_NODE</h2>
+                <div className="flex gap-4 text-xs font-bold text-fuchsia-400">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="hover:text-cyan-400 cursor-pointer">&gt; {l.platform.toUpperCase()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "neobrutalist-bold":
+        return (
+          <div className="bg-amber-100 text-zinc-950 p-8 border-4 border-black shadow-[6px_6px_0px_#000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[8px_8px_0px_#000] transition-all duration-200 relative font-sans">
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">ABOUT ME</h2>
+                <p className="leading-relaxed text-sm bg-white border-2 border-black p-4 font-medium">{data.about}</p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">SKILLS</h2>
+                <div className="flex flex-wrap gap-2">
+                  {data.skills.map((s) => (
+                    <span key={s} className="bg-violet-300 border-2 border-black px-3.5 py-1.5 text-xs font-black shadow-[2px_2px_0px_#000]">{s.toUpperCase()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">PROJECTS</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_#000] hover:-translate-y-1 transition-transform">
+                      <h3 className="font-extrabold text-sm text-black uppercase tracking-wide border-b-2 border-black pb-1 mb-2">{p.title}</h3>
+                      <p className="text-xs text-zinc-800 font-medium mb-3">{p.description}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[9px] bg-emerald-200 border border-black px-1.5 py-0.5 font-bold">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">WORK EXP</h2>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role} className="bg-white border-2 border-black p-4 shadow-[4px_4px_0px_#000]">
+                      <h3 className="font-black text-sm text-black">{e.role.toUpperCase()}</h3>
+                      <p className="text-xs font-bold text-violet-600 mb-2">{e.company} / {e.duration}</p>
+                      <p className="text-xs text-zinc-800 font-medium">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">STUDIES</h2>
+                {data.education.map((edu) => (
+                  <div key={edu.degree} className="bg-white border-2 border-black p-3 mb-2 shadow-[2px_2px_0px_#000]">
+                    <p className="font-extrabold text-sm">{edu.degree}</p>
+                    <p className="text-xs text-zinc-700">{edu.school} · {edu.year}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-xl font-black uppercase tracking-tight border-b-4 border-black pb-2 mb-4">SOCIALS</h2>
+                <div className="flex gap-3">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="bg-cyan-200 border-2 border-black px-3 py-1 font-bold text-xs shadow-[2px_2px_0px_#000] cursor-pointer hover:bg-cyan-300">{l.platform}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "elegant-serif":
+        return (
+          <div className="bg-[#fcfbf9] text-stone-900 font-serif p-8 border-y border-stone-200">
+            {sectionId === "about" && (
+              <div className="max-w-xl mx-auto text-center">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-3 font-sans">About</h2>
+                <p className="leading-[1.8] text-sm text-stone-700 font-serif italic">{data.about}</p>
+                <div className="mx-auto my-4 w-12 h-px bg-stone-300" />
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div className="max-w-xl mx-auto text-center">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-4 font-sans">Expertise</h2>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {data.skills.map((s) => (
+                    <span key={s} className="text-stone-700 italic text-sm tracking-wide border border-stone-300/60 rounded-full px-4 py-1 bg-[#faf9f6]">{s}</span>
+                  ))}
+                </div>
+                <div className="mx-auto my-4 w-12 h-px bg-stone-300" />
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div className="max-w-2xl mx-auto">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 text-center mb-6 font-sans">Selected Works</h2>
+                <div className="space-y-6">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="border-b border-stone-200/60 pb-4 last:border-0">
+                      <h3 className="font-semibold text-base text-stone-800 mb-1">{p.title}</h3>
+                      <p className="text-xs leading-relaxed text-stone-600 mb-2">{p.description}</p>
+                      <p className="text-[10px] tracking-wider text-stone-400 font-sans uppercase">Stack: {p.tags.join(" / ")}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mx-auto my-4 w-12 h-px bg-stone-300" />
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div className="max-w-2xl mx-auto">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 text-center mb-6 font-sans">Chronology</h2>
+                <div className="space-y-6">
+                  {data.experience.map((e) => (
+                    <div key={e.role}>
+                      <h3 className="font-bold text-sm text-stone-800">{e.role}</h3>
+                      <p className="text-xs italic text-stone-500 mb-1">{e.company} / {e.duration}</p>
+                      <p className="text-xs text-stone-600 leading-relaxed">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mx-auto my-4 w-12 h-px bg-stone-300" />
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div className="max-w-2xl mx-auto text-center">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-4 font-sans">Credentials</h2>
+                {data.education.map((edu) => (
+                  <div key={edu.degree} className="mb-2">
+                    <p className="font-medium text-sm text-stone-800">{edu.degree}</p>
+                    <p className="text-xs text-stone-500">{edu.school} · {edu.year}</p>
+                  </div>
+                ))}
+                <div className="mx-auto my-4 w-12 h-px bg-stone-300" />
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div className="text-center">
+                <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-4 font-sans">Connect</h2>
+                <div className="flex justify-center gap-6 text-sm text-stone-700 italic">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="hover:text-stone-900 cursor-pointer">{l.platform}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "gradient-spotlight":
+        return (
+          <div className="relative bg-zinc-950 text-white p-8 overflow-hidden rounded-2xl">
+            <div className="absolute -top-20 -left-20 w-80 h-80 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
+            <div className="relative">
+              {sectionId === "about" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">WHO I AM</h2>
+                  <p className="leading-relaxed text-sm text-zinc-300">{data.about}</p>
+                </div>
+              )}
+              {sectionId === "skills" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">EXPERTISE</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {data.skills.map((s) => (
+                      <span key={s} className="rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 px-3.5 py-1.5 text-xs shadow-md">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "projects" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">REPOS</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {data.projects.map((p) => (
+                      <div key={p.title} className="bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-2xl hover:border-zinc-700/80 transition-all shadow-md">
+                        <h3 className="font-bold text-sm text-zinc-100 mb-1">{p.title}</h3>
+                        <p className="text-xs text-zinc-400 mb-2">{p.description}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {p.tags.map((tag) => (
+                            <span key={tag} className="text-[10px] text-blue-400 bg-blue-950/20 px-1.5 py-0.5 rounded-sm">{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "experience" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">WORK LOG</h2>
+                  <div className="space-y-4">
+                    {data.experience.map((e) => (
+                      <div key={e.role} className="bg-zinc-900/40 border border-zinc-800 p-4 rounded-xl">
+                        <h3 className="font-bold text-sm text-zinc-100">{e.role}</h3>
+                        <p className="text-xs text-indigo-400 mb-2">{e.company} · {e.duration}</p>
+                        <p className="text-xs text-zinc-400">{e.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "education" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">STUDIES</h2>
+                  <div className="space-y-2">
+                    {data.education.map((edu) => (
+                      <div key={edu.degree} className="bg-zinc-900/30 p-3 rounded-lg border border-zinc-800/50">
+                        <p className="font-semibold text-sm text-zinc-200">{edu.degree}</p>
+                        <p className="text-xs text-zinc-400">{edu.school} · {edu.year}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sectionId === "contact" && (
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent mb-4">SOCIALS</h2>
+                  <div className="flex gap-4 text-xs font-semibold text-indigo-400">
+                    {data.socialLinks.map((l) => (
+                      <span key={l.platform} className="hover:text-blue-400 cursor-pointer">{l.platform}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+      case "interactive-timeline":
+        return (
+          <div className="bg-slate-50 text-slate-800 p-8 border-l-4 border-emerald-500 shadow-sm relative transition-all duration-300">
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-4">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> About Me
+                </h2>
+                <p className="leading-relaxed text-sm text-slate-600 pl-6">{data.about}</p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-4">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> Core Focus
+                </h2>
+                <div className="flex flex-wrap gap-2 pl-6">
+                  {data.skills.map((s) => (
+                    <span key={s} className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300/40 px-3.5 py-1 text-xs font-semibold">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-4">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> Project Timeline
+                </h2>
+                <div className="space-y-4 pl-6">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="bg-white border border-slate-200/80 p-4 rounded-xl shadow-xs">
+                      <h3 className="font-bold text-sm text-slate-800">{p.title}</h3>
+                      <p className="text-xs text-slate-500 mt-1">{p.description}</p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded font-medium">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-6">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> Professional Timeline
+                </h2>
+                <div className="space-y-4 pl-6 relative before:absolute before:top-2 before:bottom-2 before:left-[7px] before:w-[2px] before:bg-slate-200">
+                  {data.experience.map((e) => (
+                    <div key={e.role} className="relative pl-6">
+                      <div className="absolute left-[3px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+                      <h3 className="font-bold text-sm text-slate-800">{e.role}</h3>
+                      <p className="text-xs text-emerald-600 font-semibold">{e.company} · {e.duration}</p>
+                      <p className="text-xs text-slate-500 mt-1">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-4">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> Academics
+                </h2>
+                <div className="space-y-2 pl-6">
+                  {data.education.map((edu) => (
+                    <div key={edu.degree}>
+                      <p className="font-semibold text-sm text-slate-800">{edu.degree}</p>
+                      <p className="text-xs text-slate-500">{edu.school} · {edu.year}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-emerald-700 text-lg font-bold flex items-center gap-2 mb-4">
+                  <span className="h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" /> Connect
+                </h2>
+                <div className="flex gap-4 text-xs font-bold text-emerald-700 pl-6">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="hover:text-emerald-800 cursor-pointer">{l.platform}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "card-deck":
+        return (
+          <div className="bg-slate-900 text-slate-100 p-8 border border-slate-800/60 shadow-2xl rounded-2xl transition-transform duration-300 hover:scale-[1.005]">
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">About Me</h2>
+                <p className="leading-relaxed text-sm text-slate-300">{data.about}</p>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Core Competencies</h2>
+                <div className="flex flex-wrap gap-2">
+                  {data.skills.map((s) => (
+                    <span key={s} className="bg-slate-800 text-slate-300 rounded-md px-3 py-1.5 text-xs font-semibold shadow-inner">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Projects Stack</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="bg-slate-850 border border-slate-800/80 p-4 rounded-xl hover:bg-slate-800/40 transition-colors">
+                      <h3 className="font-bold text-sm text-slate-200 mb-1">{p.title}</h3>
+                      <p className="text-xs text-slate-400 mb-2">{p.description}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] text-indigo-400 bg-indigo-950/20 px-1.5 py-0.5 rounded-sm">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Career Journey</h2>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role} className="border-l-2 border-indigo-500 pl-4 bg-slate-850/20 p-2 rounded-r-lg">
+                      <h3 className="font-bold text-sm text-slate-200">{e.role}</h3>
+                      <p className="text-xs text-indigo-400 mb-1">{e.company} · {e.duration}</p>
+                      <p className="text-xs text-slate-400">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Studies</h2>
+                <div className="space-y-2">
+                  {data.education.map((edu) => (
+                    <div key={edu.degree} className="bg-slate-850 p-3 rounded-lg border border-slate-800">
+                      <p className="font-semibold text-sm text-slate-200">{edu.degree}</p>
+                      <p className="text-xs text-slate-400">{edu.school} · {edu.year}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-indigo-400 text-sm font-bold uppercase tracking-wider mb-4 border-b border-slate-800 pb-2">Connect</h2>
+                <div className="flex gap-4 text-xs font-bold text-indigo-400">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="hover:text-indigo-300 cursor-pointer">{l.platform}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "dashboard-saas":
+        return (
+          <div className="bg-slate-950 text-slate-200 p-8 border border-slate-800 rounded-2xl shadow-lg relative">
+            <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>Project Dashboard // Dev Metrics</span>
+            </div>
+            {sectionId === "about" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">System Overview</h2>
+                <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-xl text-sm leading-relaxed text-slate-400 shadow-md">
+                  {data.about}
+                </div>
+              </div>
+            )}
+            {sectionId === "skills" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">Stack Inventory</h2>
+                <div className="bg-slate-900/80 border border-slate-800/80 p-4 rounded-xl shadow-md">
+                  <div className="flex flex-wrap gap-2">
+                    {data.skills.map((s) => (
+                      <span key={s} className="bg-slate-950 text-emerald-400 border border-emerald-950 rounded px-2.5 py-1 text-xs font-mono">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {sectionId === "projects" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">Microservices Deployed</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {data.projects.map((p) => (
+                    <div key={p.title} className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow-md">
+                      <div className="flex items-center justify-between mb-1">
+                        <h3 className="font-bold text-sm text-slate-200">{p.title}</h3>
+                        <span className="text-[9px] bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded font-mono">Status: Up</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mb-3">{p.description}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {p.tags.map((tag) => (
+                          <span key={tag} className="text-[10px] text-slate-500 font-mono bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "experience" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">Operation Logs (History)</h2>
+                <div className="space-y-4">
+                  {data.experience.map((e) => (
+                    <div key={e.role} className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow-md">
+                      <h3 className="font-bold text-sm text-slate-200">{e.role}</h3>
+                      <p className="text-xs text-slate-400 mb-2">{e.company} · {e.duration}</p>
+                      <p className="text-xs text-slate-500">{e.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "education" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">Degrees Authorized</h2>
+                <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow-md space-y-2">
+                  {data.education.map((edu) => (
+                    <div key={edu.degree}>
+                      <p className="font-semibold text-sm text-slate-200">{edu.degree}</p>
+                      <p className="text-xs text-slate-400">{edu.school} · {edu.year}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sectionId === "contact" && (
+              <div>
+                <h2 className="text-xs font-bold uppercase text-slate-400 mb-3 tracking-widest">API Integrations</h2>
+                <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-xl shadow-md flex gap-4 text-xs font-mono text-emerald-400">
+                  {data.socialLinks.map((l) => (
+                    <span key={l.platform} className="hover:underline cursor-pointer">/api/link/{l.platform.toLowerCase()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return renderContent();
 };
 
 function getAccent(templateId: string): string {
   switch (templateId) {
-    case "minimal-dark": return "hsl(190 95% 55%)";
-    case "creative-colorful": return "hsl(330 80% 65%)";
-    case "corporate-clean": return "hsl(220 60% 50%)";
-    case "glassmorphism": return "hsl(270 80% 75%)";
-    case "neon-cyberpunk": return "hsl(160 100% 50%)";
+    case "tech-minimalist": return "hsl(190 95% 55%)";
+    case "retro-terminal": return "hsl(120 100% 45%)";
+    case "glass-aurora": return "hsl(280 70% 70%)";
+    case "cyberpunk-glitch": return "hsl(330 100% 60%)";
+    case "neobrutalist-bold": return "hsl(0 0% 10%)";
     case "elegant-serif": return "hsl(35 90% 45%)";
-    case "gradient-aurora": return "hsl(280 70% 70%)";
-    case "brutalist-bold": return "hsl(0 0% 20%)";
+    case "gradient-spotlight": return "hsl(220 90% 56%)";
+    case "interactive-timeline": return "hsl(150 80% 45%)";
+    case "card-deck": return "hsl(270 80% 65%)";
+    case "dashboard-saas": return "hsl(210 90% 50%)";
     default: return "hsl(190 95% 55%)";
   }
 }
