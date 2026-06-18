@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import { defaultPortfolioData, type PortfolioData } from "@/data/mockData";
 import BackButton from "@/components/BackButton";
+import { API_URL } from "@/config";
 
 const stepLabels = [
   { icon: User,           label: "Basic Info" },
@@ -108,7 +109,7 @@ const Dashboard = () => {
     if (!token) { navigate("/login"); return; }
     (async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/portfolio", {
+        const res = await fetch(`${API_URL}/api/portfolio`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -128,7 +129,7 @@ const Dashboard = () => {
       const token = localStorage.getItem("auth_token");
       if (!token) return;
       try {
-        const res = await fetch("http://localhost:4000/api/portfolio", {
+        const res = await fetch(`${API_URL}/api/portfolio`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(data),
@@ -155,7 +156,7 @@ const Dashboard = () => {
     if (!token) { navigate("/login"); return; }
     setIsSaving(true);
     try {
-      await fetch("http://localhost:4000/api/portfolio", {
+      await fetch(`${API_URL}/api/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
@@ -167,7 +168,7 @@ const Dashboard = () => {
     const token = localStorage.getItem("auth_token");
     if (!token) { navigate("/login"); return; }
     try {
-      const res = await fetch("http://localhost:4000/api/portfolio", {
+      const res = await fetch(`${API_URL}/api/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(parsed),
