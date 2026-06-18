@@ -254,33 +254,38 @@ app.post("/api/ai/edit", async (req, res) => {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            updatedData: { type: "OBJECT" },
-            explanation: { type: "STRING" }
-          },
-          required: ["updatedData", "explanation"]
-        }
       }
     });
 
-    const prompt = `You are PortGen AI, a professional portfolio editing agent. You take the current portfolio JSON and a user's natural language instruction, and return a JSON object with:
-1. "updatedData": The fully updated portfolio data object matching the original schema. Do not omit any fields or change structure; make the requested edits and preserve all other fields exactly.
-2. "explanation": A friendly message detailing the changes you made.
+    const prompt = `You are PortGen AI, a professional portfolio editing assistant.
+
+Given the current portfolio JSON data and a user instruction, return ONLY a valid JSON object (no markdown, no code fences) with exactly these two fields:
+- "updatedData": the complete updated portfolio object (same structure as the input, with requested changes applied, all other fields preserved exactly)
+- "explanation": a short friendly string describing what you changed
 
 Current portfolio data:
 ${JSON.stringify(portfolioData, null, 2)}
 
-User instruction:
-"${message}"`;
+User instruction: "${message}"
+
+Respond with raw JSON only.`;
 
     const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    let responseText = result.response.text().trim();
+
+    // Strip markdown code fences if model wraps response
+    if (responseText.startsWith("```")) {
+      responseText = responseText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    }
+
     const parsed = JSON.parse(responseText);
+
+    if (!parsed.updatedData || !parsed.explanation) {
+      throw new Error("Invalid AI response structure — missing updatedData or explanation.");
+    }
 
     return res.json({
       updatedData: parsed.updatedData,
