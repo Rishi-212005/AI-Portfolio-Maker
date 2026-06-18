@@ -260,37 +260,43 @@ app.post("/api/ai/edit", async (req, res) => {
       }
     });
 
-    // Create a compact version for the AI prompt to save tokens
+    // ── Compact payload for AI (saves tokens) ──────────────────────────────
+    // We strip imageUrls (base64 = huge!) and truncate long text fields.
+    // IMPORTANT: after getting the AI response we merge it back with the
+    // original data so nothing the AI didn't touch ever gets lost.
     const compactData = {
       ...portfolioData,
-      about: portfolioData.about?.slice(0, 300),
-      projects: (portfolioData.projects || []).map(p => ({
+      photo: portfolioData.photo ? "[profile-photo-preserved]" : "",
+      about: portfolioData.about?.slice(0, 400),
+      projects: (portfolioData.projects || []).map((p, i) => ({
+        _idx: i,                            // keep index so we can merge back
         title: p.title,
-        description: p.description?.slice(0, 120),
+        description: p.description?.slice(0, 200),
         tags: p.tags,
         link: p.link,
         liveLink: p.liveLink
-        // omit imageUrl to save tokens
+        // imageUrl intentionally omitted — restored after AI response
       })),
-      certifications: (portfolioData.certifications || []).map(c => ({
+      certifications: (portfolioData.certifications || []).map((c, i) => ({
+        _idx: i,
         name: c.name,
         issuer: c.issuer,
         date: c.date,
         credentialUrl: c.credentialUrl
-        // omit imageUrl to save tokens
+        // imageUrl intentionally omitted — restored after AI response
       })),
       experience: (portfolioData.experience || []).map(e => ({
         role: e.role,
         company: e.company,
         duration: e.duration,
-        description: e.description?.slice(0, 150)
+        description: e.description?.slice(0, 200)
       }))
     };
 
     const prompt = `You are PortGen AI, a professional portfolio editing assistant.
 
 Given the current portfolio JSON data and a user instruction, return ONLY a valid JSON object (no markdown, no code fences) with exactly these two fields:
-- "updatedData": the complete updated portfolio object (same structure as the input, with requested changes applied, all other fields preserved exactly)
+- "updatedData": the complete updated portfolio object (same structure as the input, with requested changes applied, all other fields preserved exactly). Do NOT include "_idx" fields in your response.
 - "explanation": a short friendly string describing what you changed
 
 Current portfolio data:
@@ -314,8 +320,46 @@ Respond with raw JSON only.`;
       throw new Error("Invalid AI response structure — missing updatedData or explanation.");
     }
 
+    // ── Merge AI response back with original to restore stripped fields ──────
+    // The AI worked on compact data (no imageUrls, truncated text).
+    // We must restore: photo, project imageUrls, cert imageUrls.
+    const aiData = parsed.updatedData;
+
+    const restoredData = {
+      ...aiData,
+
+      // Always restore photo — AI never had the actual base64
+      photo: portfolioData.photo || aiData.photo || "",
+
+      // Restore imageUrl for projects by matching on title (AI may reorder/add/remove)
+      projects: (aiData.projects || []).map(aiProj => {
+        const origMatch = (portfolioData.projects || []).find(
+          op => op.title === aiProj.title
+        );
+        return {
+          ...aiProj,
+          imageUrl: aiProj.imageUrl && aiProj.imageUrl !== "[preserved]"
+            ? aiProj.imageUrl
+            : (origMatch?.imageUrl || "")
+        };
+      }),
+
+      // Restore imageUrl for certifications by matching on name
+      certifications: (aiData.certifications || []).map(aiCert => {
+        const origMatch = (portfolioData.certifications || []).find(
+          oc => oc.name === aiCert.name
+        );
+        return {
+          ...aiCert,
+          imageUrl: aiCert.imageUrl && aiCert.imageUrl !== "[preserved]"
+            ? aiCert.imageUrl
+            : (origMatch?.imageUrl || "")
+        };
+      })
+    };
+
     return res.json({
-      updatedData: parsed.updatedData,
+      updatedData: restoredData,
       explanation: parsed.explanation
     });
   } catch (err) {
