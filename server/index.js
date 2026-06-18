@@ -3,64 +3,45 @@ import cors from "cors";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import mysql from "mysql2/promise";
+import mongoose from "mongoose";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 4000;
 const jwtSecret = process.env.JWT_SECRET || "dev-secret-change-me";
+const mongodbUri = process.env.MONGODB_URI;
 
-const dbHost = process.env.DB_HOST || "localhost";
-const dbPort = Number(process.env.DB_PORT || 3306);
-const dbUser = process.env.DB_USER || "root";
-const dbPassword = process.env.DB_PASSWORD || "";
-const dbName = process.env.DB_NAME || "ai_portfolio";
+if (!mongodbUri) {
+  console.error("MONGODB_URI is not defined in environment variables!");
+  process.exit(1);
+}
 
-const poolPromise = (async () => {
-  const connection = await mysql.createConnection({
-    host: dbHost,
-    port: dbPort,
-    user: dbUser,
-    password: dbPassword,
-    multipleStatements: true,
+// Connect to MongoDB Atlas
+mongoose.connect(mongodbUri)
+  .then(() => console.log("Connected to MongoDB Atlas successfully!"))
+  .catch((err) => {
+    console.error("Failed to connect to MongoDB:", err);
+    process.exit(1);
   });
 
-  await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
-  await connection.end();
+// Define Schemas & Models
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true },
+  password_hash: { type: String, required: true },
+  created_at: { type: Date, default: Date.now }
+});
 
-  const pool = mysql.createPool({
-    host: dbHost,
-    port: dbPort,
-    user: dbUser,
-    password: dbPassword,
-    database: dbName,
-    waitForConnections: true,
-    connectionLimit: 10,
-  });
+const User = mongoose.model("User", userSchema);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      name VARCHAR(255) NOT NULL,
-      email VARCHAR(255) NOT NULL UNIQUE,
-      password_hash VARCHAR(255) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+const portfolioSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
+  data_json: { type: mongoose.Schema.Types.Mixed, required: true },
+  updated_at: { type: Date, default: Date.now }
+});
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS portfolios (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user_id INT NOT NULL UNIQUE,
-      data_json LONGTEXT NOT NULL,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      CONSTRAINT fk_portfolios_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
-
-  return pool;
-})();
+const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
 app.use(cors());
 app.use(express.json());
@@ -98,35 +79,30 @@ app.post("/api/auth/register", async (req, res) => {
   }
 
   try {
-    const pool = await poolPromise;
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
 
-    const [existingRows] = await pool.execute(
-      "SELECT id FROM users WHERE email = ?",
-      [email.toLowerCase()]
-    );
-
-    if (Array.isArray(existingRows) && existingRows.length > 0) {
+    if (existingUser) {
       return res.status(409).json({ message: "Email already registered" });
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
-
-    const [result] = await pool.execute(
-      "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-      [name, email.toLowerCase(), passwordHash]
-    );
-
-    const insertedId = result.insertId;
-
-    const user = {
-      id: insertedId,
+    const newUser = new User({
       name,
       email: email.toLowerCase(),
+      password_hash: passwordHash
+    });
+
+    await newUser.save();
+
+    const userObj = {
+      id: newUser._id.toString(),
+      name: newUser.name,
+      email: newUser.email,
     };
 
-    const token = generateToken(user);
+    const token = generateToken(userObj);
 
-    return res.status(201).json({ user, token });
+    return res.status(201).json({ user: userObj, token });
   } catch (err) {
     console.error("Register error", err);
     return res.status(500).json({ message: "Failed to register user" });
@@ -141,14 +117,7 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    const pool = await poolPromise;
-
-    const [rows] = await pool.execute(
-      "SELECT * FROM users WHERE email = ?",
-      [email.toLowerCase()]
-    );
-
-    const user = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -160,12 +129,15 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = generateToken(user);
+    const userObj = {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+    };
 
-    return res.json({
-      user: { id: user.id, name: user.name, email: user.email },
-      token,
-    });
+    const token = generateToken(userObj);
+
+    return res.json({ user: userObj, token });
   } catch (err) {
     console.error("Login error", err);
     return res.status(500).json({ message: "Failed to login" });
@@ -192,24 +164,22 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const pool = await poolPromise;
-    const [rows] = await pool.execute(
-      "SELECT data_json FROM portfolios WHERE user_id = ?",
-      [userId]
-    );
+    const portfolio = await Portfolio.findOne({ user_id: userId });
 
-    const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-
-    if (!row) {
+    if (!portfolio) {
       return res.status(404).json({ message: "No portfolio found for user" });
     }
 
-    try {
-      const data = JSON.parse(row.data_json);
-      return res.json({ data });
-    } catch {
-      return res.status(500).json({ message: "Failed to parse portfolio data" });
+    let data = portfolio.data_json;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return res.status(500).json({ message: "Failed to parse portfolio data" });
+      }
     }
+
+    return res.json({ data });
   } catch (err) {
     console.error("Get portfolio error", err);
     return res.status(500).json({ message: "Failed to load portfolio" });
@@ -224,18 +194,11 @@ app.post("/api/portfolio", requireAuth, async (req, res) => {
     return res.status(400).json({ message: "Portfolio data is required" });
   }
 
-  const dataJson = JSON.stringify(data);
-
   try {
-    const pool = await poolPromise;
-
-    await pool.execute(
-      `INSERT INTO portfolios (user_id, data_json, updated_at)
-       VALUES (?, ?, CURRENT_TIMESTAMP)
-       ON DUPLICATE KEY UPDATE
-         data_json = VALUES(data_json),
-         updated_at = CURRENT_TIMESTAMP`,
-      [userId, dataJson]
+    await Portfolio.findOneAndUpdate(
+      { user_id: userId },
+      { data_json: data, updated_at: new Date() },
+      { upsert: true, new: true }
     );
 
     return res.status(200).json({ message: "Portfolio saved" });
