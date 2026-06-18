@@ -131,7 +131,9 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
         .theme-highlight-border-opacity { border-color: var(--portfolio-primary-glow) !important; }
       `}</style>
 
-      {renderTemplate()}
+      <div id="portfolio-template-root" className="w-full h-full">
+        {renderTemplate()}
+      </div>
 
       <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} />
     </div>
