@@ -1,75 +1,152 @@
-import { UserRound } from "lucide-react";
-
 export interface PortfolioData {
+  // Basic Info
   name: string;
   title: string;
   about: string;
+  photo?: string;          // base64 data-URL or hosted URL
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+
+  // Professional
   skills: string[];
-  projects: { title: string; description: string; tags: string[]; link: string }[];
-  experience: { role: string; company: string; duration: string; description: string }[];
-  education: { degree: string; school: string; year: string }[];
+  projects: {
+    title: string;
+    description: string;
+    tags: string[];
+    link: string;
+    liveLink?: string;
+    imageUrl?: string;     // project preview image (base64 or URL)
+  }[];
+  experience: {
+    role: string;
+    company: string;
+    duration: string;
+    description: string;
+  }[];
+  education: {
+    degree: string;
+    school: string;
+    year: string;
+  }[];
+
+  // Extras
   socialLinks: { platform: string; url: string }[];
+  certifications?: {
+    name: string;
+    issuer: string;
+    date: string;
+    imageUrl?: string;      // certificate image/badge (base64 or URL)
+    credentialUrl?: string; // verify link
+  }[];
+  achievements?: string[];
+  languages?: { name: string; level: string }[];
 }
 
 export const defaultPortfolioData: PortfolioData = {
-  name: "Alex Johnson",
-  title: "Full-Stack Developer & UI Designer",
-  about: "Passionate developer with 5+ years of experience building modern web applications. I specialize in React, TypeScript, and Node.js, crafting elegant solutions that bridge design and engineering.",
-  skills: ["React", "TypeScript", "Node.js", "Python", "Figma", "AWS", "GraphQL", "TailwindCSS", "Docker", "PostgreSQL"],
+  name: "Sai Rishi Kumar Vedi",
+  title: "Full-Stack Developer & Cybersecurity Enthusiast",
+  about:
+    "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
+  email: "sairishikumarvedi@gmail.com",
+  phone: "+91 98765 43210",
+  location: "Ananthapuramu, Andhra Pradesh, India",
+  website: "https://rishi-212005.github.io/Personel-Portfolio/",
+  skills: [
+    "React", "TypeScript", "JavaScript",
+    "Node.js", "Express", "PHP", "Python",
+    "MySQL", "MongoDB",
+    "TailwindCSS", "Git", "Linux",
+  ],
   projects: [
     {
-      title: "CloudSync Dashboard",
-      description: "A real-time data visualization dashboard for cloud infrastructure monitoring with live metrics and alerts.",
-      tags: ["React", "D3.js", "WebSocket"],
-      link: "#",
+      title: "Academia Authenticator",
+      description:
+        "An AI-powered academic verification system with OCR data extraction and secure credential parsing. Reduces manual verification time by 80%.",
+      tags: ["Python", "OCR", "FastAPI", "MongoDB"],
+      link: "https://github.com/Rishi-212005/Academia-Authenticator",
+      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
+      imageUrl: "",
     },
     {
-      title: "AI Content Studio",
-      description: "An AI-powered content creation platform that generates, edits, and optimizes marketing copy.",
-      tags: ["Next.js", "OpenAI", "Prisma"],
-      link: "#",
+      title: "AI Raw Material Marketplace",
+      description:
+        "A secure B2B full-stack marketplace connecting manufacturers with verified raw material suppliers using AI-driven matching.",
+      tags: ["React", "Node.js", "Express", "MySQL"],
+      link: "https://github.com/Rishi-212005/AI-Marketplace",
+      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
+      imageUrl: "",
     },
     {
-      title: "FinTrack Mobile",
-      description: "A personal finance tracker with budget analytics, spending insights, and bank integration.",
-      tags: ["React Native", "Firebase", "Plaid"],
-      link: "#",
-    },
-    {
-      title: "DevCollab",
-      description: "A collaborative code editor with real-time pair programming, video chat, and version control.",
-      tags: ["WebRTC", "Monaco", "Socket.io"],
-      link: "#",
+      title: "InternConnect Campus Portal",
+      description:
+        "A centralized platform to streamline internship application workflows, evaluations, and certifications for 500+ students.",
+      tags: ["PHP", "MySQL", "Bootstrap", "JS"],
+      link: "https://github.com/Rishi-212005/InternConnect",
+      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
+      imageUrl: "",
     },
   ],
   experience: [
     {
-      role: "Senior Frontend Engineer",
-      company: "TechCorp Inc.",
-      duration: "2022 - Present",
-      description: "Leading the frontend architecture for a SaaS platform serving 50K+ users.",
-    },
-    {
-      role: "Full-Stack Developer",
-      company: "StartupXYZ",
-      duration: "2020 - 2022",
-      description: "Built and maintained multiple client-facing applications using React and Node.js.",
-    },
-    {
-      role: "Junior Developer",
-      company: "WebAgency",
-      duration: "2018 - 2020",
-      description: "Developed responsive websites and web applications for various clients.",
+      role: "Software Engineer Intern",
+      company: "National Informatics Centre (NIC)",
+      duration: "May 2025 – Jul 2025",
+      description:
+        "Designed e-governance system workflows, implemented RBAC authentication modules, and optimized secure backend queries in PHP/MySQL. Collaborated with senior engineers on production-grade government portals.",
     },
   ],
   education: [
-    { degree: "B.S. Computer Science", school: "MIT", year: "2018" },
-    { degree: "Full-Stack Bootcamp", school: "Codecademy", year: "2017" },
+    {
+      degree: "B.Tech Computer Science & Engineering",
+      school: "JNTU Anantapur",
+      year: "2023 – 2027",
+    },
+    {
+      degree: "Intermediate – MPC (Science)",
+      school: "Narayana Junior College",
+      year: "2021 – 2023",
+    },
   ],
   socialLinks: [
-    { platform: "GitHub", url: "https://github.com" },
-    { platform: "LinkedIn", url: "https://linkedin.com" },
+    { platform: "GitHub", url: "https://github.com/Rishi-212005" },
+    { platform: "LinkedIn", url: "https://linkedin.com/in/sairishikumarvedi" },
     { platform: "Twitter", url: "https://twitter.com" },
+  ],
+  certifications: [
+    {
+      name: "NIC e-Governance Internship Certificate",
+      issuer: "National Informatics Centre",
+      date: "July 2025",
+      imageUrl: "",
+      credentialUrl: "",
+    },
+    {
+      name: "Cybersecurity Fundamentals",
+      issuer: "Infosys Springboard",
+      date: "November 2024",
+      imageUrl: "",
+      credentialUrl: "",
+    },
+    {
+      name: "Responsive Web Design",
+      issuer: "freeCodeCamp",
+      date: "August 2024",
+      imageUrl: "",
+      credentialUrl: "",
+    },
+  ],
+  achievements: [
+    "🏆 Top performer in JNTU Hackathon 2024 – secured 2nd place among 120 teams",
+    "📜 Completed NIC e-Governance internship with distinction",
+    "🎯 Built 3 full-stack projects used by 500+ real users",
+    "🔒 Completed Ethical Hacking course with hands-on CTF challenges",
+  ],
+  languages: [
+    { name: "Telugu", level: "Native" },
+    { name: "English", level: "Professional" },
+    { name: "Hindi", level: "Conversational" },
   ],
 };
 
@@ -77,7 +154,7 @@ export const templateList = [
   {
     id: "tech-minimalist",
     name: "Tech Minimalist",
-    description: "Ultra-clean dark layout with grid boarders, monospace details, and neon indicators.",
+    description: "Ultra-clean dark layout with grid borders, monospace details, and neon indicators.",
     preview: "Dark gray grid, cyan highlights, active status node",
     color: "hsl(190 95% 55%)",
     categories: ["Dark", "Modern"],
