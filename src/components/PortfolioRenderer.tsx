@@ -36,35 +36,83 @@ interface Props {
   sectionOrder?: string[];
 }
 
+const ensureAbsoluteUrl = (url?: string): string => {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  
+  // If it's already an email, tel, or hash link, leave it as is
+  if (/^(mailto:|tel:|#)/i.test(trimmed)) {
+    return trimmed;
+  }
+  
+  // If it's a protocol-relative link (e.g., //google.com), prepend https:
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+  
+  // Handle protocol typo/normalization (e.g. "https//", "https:", etc)
+  const protoMatch = trimmed.match(/^(https?|ftp)[:/\s]+(.*)/i);
+  if (protoMatch) {
+    const protocol = protoMatch[1].toLowerCase();
+    const domainAndPath = protoMatch[2].trim();
+    return `${protocol}://${domainAndPath}`;
+  }
+  
+  // Otherwise, default to prepending https://
+  return `https://${trimmed}`;
+};
+
 const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder }: Props) => {
   const defaultOrder = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const activeThemeColor = themeColor || "hsl(190 95% 55%)";
 
+  // Normalize all URLs in the data object before rendering to prevent relative URL issues
+  const normalizedData = useMemo(() => {
+    return {
+      ...data,
+      website: data.website ? ensureAbsoluteUrl(data.website) : data.website,
+      socialLinks: (data.socialLinks || []).map(l => ({
+        ...l,
+        url: ensureAbsoluteUrl(l.url)
+      })),
+      projects: (data.projects || []).map(p => ({
+        ...p,
+        link: p.link ? ensureAbsoluteUrl(p.link) : p.link,
+        liveLink: p.liveLink ? ensureAbsoluteUrl(p.liveLink) : p.liveLink
+      })),
+      certifications: (data.certifications || []).map(c => ({
+        ...c,
+        credentialUrl: c.credentialUrl ? ensureAbsoluteUrl(c.credentialUrl) : c.credentialUrl
+      }))
+    };
+  }, [data]);
+
   const renderTemplate = () => {
     switch (templateId) {
       case "tech-minimalist":
-        return <TechMinimalist data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "retro-terminal":
-        return <RetroTerminal data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "glass-aurora":
-        return <GlassAurora data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "cyberpunk-glitch":
-        return <CyberpunkGlitch data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "neobrutalist-bold":
-        return <NeobrutalistBold data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "elegant-serif":
-        return <ElegantEditorial data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "gradient-spotlight":
-        return <GradientSpotlight data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "interactive-timeline":
-        return <InteractiveTimeline data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "card-deck":
-        return <CardDeck data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "dashboard-saas":
-        return <DashboardSaas data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       default:
-        return <TechMinimalist data={data} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
     }
   };
 
@@ -85,7 +133,7 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
 
       {renderTemplate()}
 
-      <FloatingWidgets data={data} themeColor={activeThemeColor} />
+      <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} />
     </div>
   );
 };
