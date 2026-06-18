@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -84,6 +85,30 @@ const Dashboard = () => {
     }
   };
 
+  const saveAndRedirect = async (parsedData: PortfolioData) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:4000/api/portfolio", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(parsedData),
+      });
+      if (res.ok) {
+        navigate("/templates");
+      }
+    } catch (err) {
+      console.error("Failed to auto-save parsed resume", err);
+    }
+  };
+
   const addSkill = () => {
     if (skillInput.trim()) {
       setData((prev) => ({ ...prev, skills: [...prev.skills, skillInput.trim()] }));
@@ -97,6 +122,7 @@ const Dashboard = () => {
 
   const processFile = (fileName: string) => {
     setUploadedFile(fileName);
+    setIsParsing(true);
     
     let userName = "Alex Johnson";
     try {
@@ -111,29 +137,33 @@ const Dashboard = () => {
       // fallback
     }
 
-    setTimeout(() => {
-      setData({
-        name: userName,
-        title: "Full-Stack Developer & UI Designer",
-        about: `Passionate developer with 5+ years of experience building modern web applications. Specialize in React, TypeScript, and Node.js. Successfully imported details from ${fileName}.`,
-        skills: ["React", "TypeScript", "Node.js", "Python", "GraphQL", "TailwindCSS", "PostgreSQL"],
-        projects: [
-          { title: "CloudSync Dashboard", description: "Real-time data visualization dashboard for cloud infrastructure monitoring.", tags: ["React", "D3.js", "WebSocket"], link: "#" },
-          { title: "AI Content Studio", description: "AI-powered content creation platform for marketing copy.", tags: ["Next.js", "OpenAI", "Prisma"], link: "#" },
-        ],
-        experience: [
-          { role: "Senior Frontend Engineer", company: "TechCorp Inc.", duration: "2022 - Present", description: "Leading frontend architecture for a SaaS platform serving 50K+ users." },
-          { role: "Full-Stack Developer", company: "StartupXYZ", duration: "2020 - 2022", description: "Built and maintained client-facing applications using React and Node.js." },
-        ],
-        education: [
-          { degree: "B.S. Computer Science", school: "MIT", year: "2018" },
-        ],
-        socialLinks: [
-          { platform: "GitHub", url: "https://github.com" },
-          { platform: "LinkedIn", url: "https://linkedin.com" },
-        ],
-      });
-    }, 800);
+    const parsedData: PortfolioData = {
+      name: userName,
+      title: "Full-Stack Developer & UI Designer",
+      about: `Passionate developer with 5+ years of experience building modern web applications. Specialize in React, TypeScript, and Node.js. Successfully imported details from ${fileName}.`,
+      skills: ["React", "TypeScript", "Node.js", "Python", "GraphQL", "TailwindCSS", "PostgreSQL"],
+      projects: [
+        { title: "CloudSync Dashboard", description: "Real-time data visualization dashboard for cloud infrastructure monitoring.", tags: ["React", "D3.js", "WebSocket"], link: "#" },
+        { title: "AI Content Studio", description: "AI-powered content creation platform for marketing copy.", tags: ["Next.js", "OpenAI", "Prisma"], link: "#" },
+      ],
+      experience: [
+        { role: "Senior Frontend Engineer", company: "TechCorp Inc.", duration: "2022 - Present", description: "Leading frontend architecture for a SaaS platform serving 50K+ users." },
+        { role: "Full-Stack Developer", company: "StartupXYZ", duration: "2020 - 2022", description: "Built and maintained client-facing applications using React and Node.js." },
+      ],
+      education: [
+        { degree: "B.S. Computer Science", school: "MIT", year: "2018" },
+      ],
+      socialLinks: [
+        { platform: "GitHub", url: "https://github.com" },
+        { platform: "LinkedIn", url: "https://linkedin.com" },
+      ],
+    };
+
+    setTimeout(async () => {
+      setData(parsedData);
+      await saveAndRedirect(parsedData);
+      setIsParsing(false);
+    }, 1500);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,7 +209,15 @@ const Dashboard = () => {
           transition={{ delay: 0.1 }}
           className="mb-10"
         >
-          {!uploadedFile ? (
+          {isParsing ? (
+            <div className="glass-card flex flex-col items-center justify-center rounded-2xl border border-primary/20 p-10 text-center bg-primary/[0.01]">
+              <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                <Sparkles className="h-8 w-8 text-primary animate-pulse" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-primary animate-pulse">Analyzing & Parsing Resume...</h3>
+              <p className="text-sm text-muted-foreground">Extracting details and saving directly to your MongoDB Atlas database...</p>
+            </div>
+          ) : !uploadedFile ? (
             <div
               onClick={triggerFileSelect}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
