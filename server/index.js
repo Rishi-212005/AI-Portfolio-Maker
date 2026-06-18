@@ -260,6 +260,33 @@ app.post("/api/ai/edit", async (req, res) => {
       }
     });
 
+    // Create a compact version for the AI prompt to save tokens
+    const compactData = {
+      ...portfolioData,
+      about: portfolioData.about?.slice(0, 300),
+      projects: (portfolioData.projects || []).map(p => ({
+        title: p.title,
+        description: p.description?.slice(0, 120),
+        tags: p.tags,
+        link: p.link,
+        liveLink: p.liveLink
+        // omit imageUrl to save tokens
+      })),
+      certifications: (portfolioData.certifications || []).map(c => ({
+        name: c.name,
+        issuer: c.issuer,
+        date: c.date,
+        credentialUrl: c.credentialUrl
+        // omit imageUrl to save tokens
+      })),
+      experience: (portfolioData.experience || []).map(e => ({
+        role: e.role,
+        company: e.company,
+        duration: e.duration,
+        description: e.description?.slice(0, 150)
+      }))
+    };
+
     const prompt = `You are PortGen AI, a professional portfolio editing assistant.
 
 Given the current portfolio JSON data and a user instruction, return ONLY a valid JSON object (no markdown, no code fences) with exactly these two fields:
@@ -267,7 +294,7 @@ Given the current portfolio JSON data and a user instruction, return ONLY a vali
 - "explanation": a short friendly string describing what you changed
 
 Current portfolio data:
-${JSON.stringify(portfolioData, null, 2)}
+${JSON.stringify(compactData, null, 2)}
 
 User instruction: "${message}"
 
