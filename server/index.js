@@ -306,7 +306,24 @@ User instruction: "${message}"
 
 Respond with raw JSON only.`;
 
-    const result = await model.generateContent(prompt);
+    let result;
+    let retries = 3;
+    let delayMs = 2000;
+    while (retries > 0) {
+      try {
+        result = await model.generateContent(prompt);
+        break;
+      } catch (err) {
+        if (err.status === 429 && retries > 1) {
+          console.warn(`[Gemini API] 429 rate limit. Retrying in ${delayMs}ms... (${retries - 1} retries left)`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          retries--;
+          delayMs *= 2;
+        } else {
+          throw err;
+        }
+      }
+    }
     let responseText = result.response.text().trim();
 
     // Strip markdown code fences if model wraps response
