@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
 import { 
   Github, 
   Linkedin, 
@@ -202,19 +202,135 @@ const CommonContactForm = ({
 };
 
 
+/* ====== DECIPHER TEXT ENHANCEMENT ====== */
+const DecipherText = ({ text, className = "", style = {} }: { text: string; className?: string; style?: React.CSSProperties }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const chars = "01_+#[]x/\\<>$&%@*";
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startAnimation = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    let iterations = 0;
+    
+    intervalRef.current = setInterval(() => {
+      setDisplayText(
+        text
+          .split("")
+          .map((char, index) => {
+            if (char === " ") return " ";
+            if (index < iterations) {
+              return text[index];
+            }
+            return chars[Math.floor(Math.random() * chars.length)];
+          })
+          .join("")
+      );
+
+      if (iterations >= text.length) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      }
+      iterations += 1 / 3;
+    }, 30);
+  }, [text]);
+
+  useEffect(() => {
+    startAnimation();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [text, startAnimation]);
+
+  const handleMouseEnter = () => {
+    startAnimation();
+  };
+
+  return (
+    <span 
+      className={className} 
+      style={style}
+      onMouseEnter={handleMouseEnter}
+    >
+      {displayText}
+    </span>
+  );
+};
+
 /* ====== SHARED SECTION HEADER ====== */
 const SectionHeader = ({ label, color }: { label: string; color: string }) => (
-  <div className="flex items-center gap-3 mb-2">
-    <span className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color }}>{label}</span>
+  <div className="flex items-center gap-3 mb-2 select-none">
+    <DecipherText 
+      text={label} 
+      className="text-xs font-bold uppercase tracking-[0.2em]" 
+      style={{ color }} 
+    />
     <div className="flex-1 h-px opacity-20" style={{ backgroundColor: color }} />
   </div>
 );
+
+/* ====== SHARED SKILL BADGE ENHANCEMENT ====== */
+const SkillBadge = ({ skill, themeColor }: { skill: string; themeColor: string }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.span
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      variants={{
+        hidden: { opacity: 0, y: 15 },
+        visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 20 } }
+      }}
+      whileHover={{ 
+        scale: 1.08, 
+        borderColor: themeColor, 
+        boxShadow: `0 0 16px ${themeColor}40`,
+        backgroundColor: `${themeColor}15`
+      }}
+      transition={{ type: "spring", stiffness: 400, damping: 15 }}
+      className="rounded-sm px-3.5 py-1.5 text-xs border font-semibold cursor-default transition-all flex items-center gap-1 select-none"
+      style={{ 
+        backgroundColor: hovered ? `${themeColor}15` : `${themeColor}08`, 
+        color: themeColor, 
+        borderColor: hovered ? themeColor : `${themeColor}20` 
+      }}
+    >
+      <span>{skill}</span>
+      {hovered && (
+        <motion.span 
+          animate={{ opacity: [1, 0, 1] }} 
+          transition={{ duration: 0.8, repeat: Infinity }}
+          className="font-bold shrink-0"
+        >
+          _
+        </motion.span>
+      )}
+    </motion.span>
+  );
+};
 
 /* ====== 1. TECH MINIMALIST ====== */
 const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
   const [activeSection, setActiveSection] = useState("home");
   const [typedText, setTypedText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isHovering, setIsHovering] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  // Mouse tracking for spotlight glow
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
 
   // Typing effect
   useEffect(() => {
@@ -250,14 +366,31 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
     return () => window.removeEventListener("scroll", handleScroll);
   }, [sectionOrder]);
 
-  const bg = isDark ? "bg-slate-950" : "bg-gray-50";
+  const bg = isDark ? "bg-slate-950 text-slate-100" : "bg-gray-50 text-slate-900";
   const cardBg = isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200";
   const muted = isDark ? "text-slate-400" : "text-slate-500";
-  const heading = isDark ? "text-slate-100" : "text-slate-900";
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 40 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
+  };
+
+  const containerVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring" as const, stiffness: 300, damping: 20 }
+    }
   };
 
   // Skill categories
@@ -287,11 +420,86 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
   const sections = sectionOrder;
 
   return (
-    <div className={`min-h-screen font-mono pb-20 transition-colors duration-300 ${bg} ${isDark ? "text-slate-100" : "text-slate-900"} bg-[radial-gradient(${isDark ? "#1e293b" : "#e2e8f0"}_1px,transparent_1px)] [background-size:20px_20px]`}>
+    <div 
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      className={`min-h-screen font-mono pb-20 transition-colors duration-300 relative overflow-hidden ${bg} bg-[radial-gradient(${isDark ? "#1e293b" : "#e2e8f0"}_1px,transparent_1px)] [background-size:20px_20px]`}
+    >
+      <style>{`
+        @keyframes scanline {
+          0% {
+            transform: translateY(-100%);
+          }
+          100% {
+            transform: translateY(100vh);
+          }
+        }
+        @keyframes float-slow {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-12px) rotate(2deg);
+          }
+        }
+      `}</style>
+
+      {/* Scroll Progress Bar */}
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-[3px] z-50 origin-left"
+        style={{
+          scaleX,
+          backgroundColor: themeColor,
+          boxShadow: `0 0 10px ${themeColor}, 0 0 15px ${themeColor}`
+        }}
+      />
+
+      {/* Sweeping laser scanline */}
+      <div 
+        className="pointer-events-none fixed inset-x-0 top-0 h-[2px] z-30 opacity-[0.12]"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${themeColor}, transparent)`,
+          boxShadow: `0 0 8px ${themeColor}, 0 0 15px ${themeColor}`,
+          animation: "scanline 10s linear infinite"
+        }}
+      />
+
+      {/* Background status nodes */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0 opacity-[0.04] text-[10px] font-mono">
+        <div className="absolute top-[18%] left-[4%] animate-[float-slow_7s_ease-in-out_infinite]" style={{ color: themeColor }}>
+          [SYSTEM_STATUS: ACTIVE]
+        </div>
+        <div className="absolute top-[32%] right-[6%] animate-[float-slow_9s_ease-in-out_infinite_1s]" style={{ color: themeColor }}>
+          [PORT_LOAD: 8080/TCP]
+        </div>
+        <div className="absolute top-[58%] left-[2%] animate-[float-slow_8s_ease-in-out_infinite_2s]" style={{ color: themeColor }}>
+          [CONN_ESTABLISHED: OK]
+        </div>
+        <div className="absolute top-[78%] right-[4%] animate-[float-slow_10s_ease-in-out_infinite_1.5s]" style={{ color: themeColor }}>
+          01001011 01011001
+        </div>
+      </div>
+      {/* Interactive Mouse Spotlight */}
+      {isHovering && (
+        <motion.div
+          className="pointer-events-none absolute rounded-full blur-[120px] z-0"
+          style={{
+            width: "350px",
+            height: "350px",
+            left: mousePos.x - 175,
+            top: mousePos.y - 175,
+            background: `radial-gradient(circle, ${themeColor} 0%, transparent 70%)`,
+            opacity: isDark ? 0.08 : 0.05
+          }}
+          transition={{ type: "tween", ease: "backOut", duration: 0.1 }}
+        />
+      )}
 
       {/* ===== STICKY NAVBAR ===== */}
       <nav className={`sticky top-0 z-40 backdrop-blur-md border-b px-6 py-3.5 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-slate-950/90 border-slate-800" : "bg-white/90 border-slate-200"}`}>
-        <a href="#" className="font-extrabold tracking-wider text-sm flex items-center gap-2" style={{ color: themeColor }}>
+        <a href="#" className="font-extrabold tracking-wider text-sm flex items-center gap-2 animate-pulse" style={{ color: themeColor }}>
           <span className="inline-flex items-center justify-center h-7 w-7 rounded text-xs font-black border" style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}30` }}>
             {data.name.charAt(0)}
           </span>
@@ -337,7 +545,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
       </AnimatePresence>
 
       {/* ===== HERO ===== */}
-      <section id="home" className="min-h-[92vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
+      <section id="home" className="min-h-[92vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden z-10">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.05] blur-[100px]" style={{ backgroundColor: themeColor }} />
         </div>
@@ -350,10 +558,14 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
         >
           {/* Profile photo */}
           {data.photo && (
-            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15 }} className="flex justify-center">
-              <div className="relative h-28 w-28 rounded-full overflow-hidden border-4" style={{ borderColor: themeColor, boxShadow: `0 0 32px ${themeColor}50` }}>
+            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.15, type: "spring", stiffness: 200, damping: 15 }} className="flex justify-center">
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 2 }}
+                className="relative h-28 w-28 rounded-full overflow-hidden border-4" 
+                style={{ borderColor: themeColor, boxShadow: `0 0 32px ${themeColor}30` }}
+              >
                 <img src={data.photo} alt={data.name} className="h-full w-full object-cover" />
-              </div>
+              </motion.div>
             </motion.div>
           )}
 
@@ -426,31 +638,46 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
             transition={{ delay: 0.85 }}
             className="flex flex-wrap justify-center gap-3 pt-1"
           >
-            <a href="#projects"
-              className="font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider flex items-center gap-1.5 transition-all hover:scale-105"
-              style={{ backgroundColor: themeColor, color: isDark ? "#020617" : "#ffffff", boxShadow: `0 0 24px ${themeColor}45` }}
+            <motion.a 
+              href="#projects"
+              whileHover={{ scale: 1.05, boxShadow: `0 0 24px ${themeColor}60` }}
+              whileTap={{ scale: 0.98 }}
+              className="font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider flex items-center gap-1.5 transition-all"
+              style={{ backgroundColor: themeColor, color: isDark ? "#020617" : "#ffffff" }}
             >
               View Projects <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-            <a href="#contact"
-              className="border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all hover:scale-105"
+            </motion.a>
+            <motion.a 
+              href="#contact"
+              whileHover={{ scale: 1.05, backgroundColor: `${themeColor}15`, borderColor: themeColor }}
+              whileTap={{ scale: 0.98 }}
+              className="border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all"
               style={{ borderColor: `${themeColor}50`, color: themeColor, backgroundColor: `${themeColor}08` }}
             >
               Get in Touch
-            </a>
+            </motion.a>
             {data.website && (
-              <a href={data.website} target="_blank" rel="noreferrer"
-                className={`border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isDark ? "border-slate-700 text-slate-300 hover:border-slate-500" : "border-slate-300 text-slate-700 hover:border-slate-400"}`}
+              <motion.a 
+                href={data.website} 
+                target="_blank" 
+                rel="noreferrer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                className={`border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${isDark ? "border-slate-700 text-slate-300 hover:border-slate-500" : "border-slate-300 text-slate-700 hover:border-slate-400"}`}
               >
                 <ExternalLink className="h-3.5 w-3.5" /> Portfolio
-              </a>
+              </motion.a>
             )}
-            <a href={data.socialLinks.find(l => l.platform === "GitHub")?.url || "#"}
-              target="_blank" rel="noreferrer"
-              className={`border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all hover:scale-105 flex items-center gap-1.5 ${isDark ? "border-slate-700 text-slate-300 hover:border-slate-500" : "border-slate-300 text-slate-700 hover:border-slate-400"}`}
+            <motion.a 
+              href={data.socialLinks.find(l => l.platform === "GitHub")?.url || "#"}
+              target="_blank" 
+              rel="noreferrer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+              className={`border font-bold text-xs py-3 px-7 rounded-sm uppercase tracking-wider transition-all flex items-center gap-1.5 ${isDark ? "border-slate-700 text-slate-300 hover:border-slate-500" : "border-slate-300 text-slate-700 hover:border-slate-400"}`}
             >
               <Github className="h-3.5 w-3.5" /> GitHub
-            </a>
+            </motion.a>
           </motion.div>
         </motion.div>
 
@@ -473,8 +700,8 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
         </motion.div>
       </section>
 
-      {/* ===== DYNAMIC SECTIONS ===== */}
-      <div className="mx-auto max-w-5xl px-6 pt-8 space-y-24 pb-24">
+      {/* Dynamic sections wrapper */}
+      <div className="mx-auto max-w-5xl px-6 pt-8 space-y-24 pb-24 relative z-10">
         {sections.map((sectionId) => {
           switch (sectionId) {
 
@@ -486,7 +713,6 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   <SectionHeader label="// ABOUT" color={themeColor} />
                   <div className="grid md:grid-cols-2 gap-6 mt-6">
                     <div className={`p-6 rounded-lg border ${cardBg}`}>
-                      {/* Photo in about if in hero already it duplicates – skip if already shown */}
                       {data.photo && (
                         <div className="flex items-center gap-4 mb-4">
                           <img src={data.photo} alt={data.name} className="h-16 w-16 rounded-full object-cover border-2" style={{ borderColor: themeColor }} />
@@ -499,15 +725,20 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                       <p className={`text-sm leading-loose ${muted}`}>{data.about}</p>
                       <div className="mt-5 flex flex-wrap gap-2">
                         {data.socialLinks.map(l => (
-                          <a key={l.platform} href={l.url} target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded border uppercase tracking-wider transition-all hover:scale-105"
+                          <motion.a 
+                            key={l.platform} 
+                            href={l.url} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            whileHover={{ scale: 1.05, borderColor: themeColor }}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-3 py-1.5 rounded border uppercase tracking-wider transition-all"
                             style={{ color: themeColor, borderColor: `${themeColor}30`, backgroundColor: `${themeColor}08` }}
                           >
                             {l.platform === "GitHub" && <Github className="h-3 w-3" />}
                             {l.platform === "LinkedIn" && <Linkedin className="h-3 w-3" />}
                             {l.platform === "Twitter" && <Twitter className="h-3 w-3" />}
                             {l.platform}
-                          </a>
+                          </motion.a>
                         ))}
                       </div>
                     </div>
@@ -566,32 +797,21 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                 >
                   <SectionHeader label="// SKILL INVENTORY" color={themeColor} />
                   <div className="mt-6 space-y-7">
-                    {skillCategories.map((cat, ci) => (
-                      <motion.div key={cat.label}
-                        initial={{ opacity: 0, x: -16 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: ci * 0.1 }}
-                      >
+                    {skillCategories.map((cat) => (
+                      <div key={cat.label}>
                         <div className={`text-[10px] uppercase tracking-[0.2em] font-bold mb-3 ${muted}`}>{cat.label}</div>
-                        <div className="flex flex-wrap gap-2">
-                          {cat.skills.map((s, si) => (
-                            <motion.span
-                              key={s}
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              whileInView={{ opacity: 1, scale: 1 }}
-                              viewport={{ once: true }}
-                              transition={{ delay: ci * 0.1 + si * 0.04 }}
-                              className="rounded-sm px-3 py-1.5 text-xs border font-semibold transition-all hover:scale-105 cursor-default"
-                              style={{ backgroundColor: `${themeColor}10`, color: themeColor, borderColor: `${themeColor}25` }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 0 14px ${themeColor}50`; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-                            >
-                              {s}
-                            </motion.span>
+                        <motion.div 
+                          variants={containerVariants}
+                          initial="hidden"
+                          whileInView="visible"
+                          viewport={{ once: true }}
+                          className="flex flex-wrap gap-2"
+                        >
+                          {cat.skills.map((s) => (
+                            <SkillBadge key={s} skill={s} themeColor={themeColor} />
                           ))}
-                        </div>
-                      </motion.div>
+                        </motion.div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -603,26 +823,38 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
                 >
                   <SectionHeader label="// REPOS / PROJECTS" color={themeColor} />
-                  <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                    {data.projects.map((p, pi) => (
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="mt-6 grid gap-5 sm:grid-cols-2"
+                  >
+                    {data.projects.map((p) => (
                       <motion.div
                         key={p.title}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: pi * 0.1 }}
-                        className={`rounded-lg border flex flex-col transition-all hover:-translate-y-1 group overflow-hidden ${cardBg}`}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 32px ${themeColor}25`; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                        variants={itemVariants}
+                        whileHover={{ 
+                          y: -8, 
+                          scale: 1.015, 
+                          borderColor: `${themeColor}60`, 
+                          boxShadow: `0 12px 32px ${themeColor}15` 
+                        }}
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                        className={`rounded-lg border flex flex-col overflow-hidden transition-colors group ${cardBg}`}
                       >
                         {/* Project preview image */}
                         {p.imageUrl ? (
-                          <div className="h-40 w-full overflow-hidden border-b" style={{ borderColor: `${themeColor}15` }}>
-                            <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <div className="h-40 w-full overflow-hidden border-b relative" style={{ borderColor: `${themeColor}15` }}>
+                            {/* Terminal Scanline overlay */}
+                            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.18)_50%)] bg-[size:100%_4px] z-10 opacity-50" />
+                            <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-106" />
                           </div>
                         ) : (
-                          <div className="h-32 w-full flex items-center justify-center border-b" style={{ borderColor: `${themeColor}15`, backgroundColor: `${themeColor}06` }}>
-                            <Code className="h-10 w-10 opacity-20" style={{ color: themeColor }} />
+                          <div className="h-32 w-full flex items-center justify-center border-b relative overflow-hidden" style={{ borderColor: `${themeColor}15`, backgroundColor: `${themeColor}06` }}>
+                            {/* Terminal Scanline overlay */}
+                            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.18)_50%)] bg-[size:100%_4px] z-10 opacity-30" />
+                            <Code className="h-10 w-10 opacity-20 transition-all duration-300 group-hover:opacity-40 group-hover:scale-110" style={{ color: themeColor }} />
                           </div>
                         )}
                         <div className="p-5 flex flex-col flex-1">
@@ -669,7 +901,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                         </div>
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.section>
               );
 
@@ -679,21 +911,41 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
                 >
                   <SectionHeader label="// PROFESSIONAL EXP" color={themeColor} />
-                  <div className="mt-6 space-y-5 relative">
-                    <div className="absolute left-5 top-2 bottom-2 w-px opacity-15" style={{ backgroundColor: themeColor }} />
-                    {data.experience.map((e, ei) => (
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="mt-6 space-y-5 relative"
+                  >
+                    <motion.div 
+                      initial={{ scaleY: 0 }}
+                      whileInView={{ scaleY: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, ease: "easeOut" }}
+                      className="absolute left-5 top-2 bottom-2 w-px origin-top opacity-30" 
+                      style={{ backgroundColor: themeColor, boxShadow: `0 0 8px ${themeColor}` }}
+                    />
+                    {data.experience.map((e) => (
                       <motion.div key={e.role + e.company}
-                        initial={{ opacity: 0, x: -16 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: ei * 0.15 }}
+                        variants={itemVariants}
                         className="pl-14 relative"
                       >
-                        <div className="absolute left-3 top-5 h-4 w-4 rounded-full border-2 flex items-center justify-center"
+                        <motion.div 
+                          initial={{ scale: 0 }}
+                          whileInView={{ scale: 1 }}
+                          viewport={{ once: true }}
+                          transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+                          className="absolute left-3 top-5 h-4 w-4 rounded-full border-2 flex items-center justify-center z-10"
                           style={{ borderColor: themeColor, backgroundColor: isDark ? "#020617" : "#f9fafb" }}
                         >
-                          <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: themeColor }} />
-                        </div>
+                          <motion.div 
+                            animate={{ scale: [1, 1.3, 1] }} 
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="h-1.5 w-1.5 rounded-full" 
+                            style={{ backgroundColor: themeColor }} 
+                          />
+                        </motion.div>
                         <div className={`p-5 rounded-lg border ${cardBg}`}>
                           <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
                             <div>
@@ -708,7 +960,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                         </div>
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.section>
               );
 
@@ -718,13 +970,18 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
                 >
                   <SectionHeader label="// ACADEMICS" color={themeColor} />
-                  <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                    {data.education.map((edu, ei) => (
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="mt-6 grid gap-4 sm:grid-cols-2"
+                  >
+                    {data.education.map((edu) => (
                       <motion.div key={edu.degree}
-                        initial={{ opacity: 0, y: 16 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: ei * 0.1 }}
+                        variants={itemVariants}
+                        whileHover={{ scale: 1.02, borderColor: `${themeColor}40` }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
                         className={`p-5 rounded-lg border flex gap-4 ${cardBg}`}
                       >
                         <div className="h-10 w-10 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: `${themeColor}15` }}>
@@ -741,7 +998,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                         </div>
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.section>
               );
 
@@ -751,16 +1008,19 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
                 >
                   <SectionHeader label="// CERTIFICATIONS" color={themeColor} />
-                  <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                    {data.certifications.map((c, ci) => (
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="mt-6 grid gap-5 sm:grid-cols-2"
+                  >
+                    {data.certifications.map((c) => (
                       <motion.div key={c.name}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: ci * 0.08 }}
-                        className={`rounded-lg border overflow-hidden transition-all hover:-translate-y-0.5 ${cardBg}`}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 6px 24px ${themeColor}22`; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
+                        variants={itemVariants}
+                        whileHover={{ y: -6, scale: 1.015, borderColor: `${themeColor}60`, boxShadow: `0 8px 24px ${themeColor}15` }}
+                        transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                        className={`rounded-lg border overflow-hidden ${cardBg}`}
                       >
                         {/* Certificate image */}
                         {c.imageUrl ? (
@@ -794,7 +1054,34 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                         </div>
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
+                </motion.section>
+              ) : null;
+
+            case "achievements":
+              return data.achievements && data.achievements.length > 0 ? (
+                <motion.section id="achievements" key="achievements" className="scroll-mt-24"
+                  variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
+                >
+                  <SectionHeader label="// ACHIEVEMENTS" color={themeColor} />
+                  <motion.div 
+                    variants={containerVariants}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    className="mt-6 space-y-3"
+                  >
+                    {data.achievements.map((ach, ai) => (
+                      <motion.div key={ai}
+                        variants={itemVariants}
+                        whileHover={{ scale: 1.01, borderColor: `${themeColor}40`, x: 4 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        className={`p-4 rounded-lg border text-sm flex items-start gap-3 ${cardBg}`}
+                      >
+                        <span className={muted}>{ach}</span>
+                      </motion.div>
+                    ))}
+                  </motion.div>
                 </motion.section>
               ) : null;
 
@@ -836,30 +1123,6 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
                   </div>
                 </motion.section>
               );
-
-            case "achievements" as string:
-              return data.achievements && data.achievements.length > 0 ? (
-                <motion.section id="achievements" key="achievements" className="scroll-mt-24"
-                  variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-80px" }}
-                >
-                  <SectionHeader label="// ACHIEVEMENTS" color={themeColor} />
-                  <div className="mt-6 space-y-3">
-                    {data.achievements.map((ach, ai) => (
-                      <motion.div key={ai}
-                        initial={{ opacity: 0, x: -16 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: ai * 0.07 }}
-                        className={`p-4 rounded-lg border text-sm flex items-start gap-3 ${cardBg}`}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 16px ${themeColor}18`; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
-                      >
-                        <span className={muted}>{ach}</span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.section>
-              ) : null;
 
             default:
               return null;
