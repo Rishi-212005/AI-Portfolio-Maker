@@ -25,3 +25,10 @@ server/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch/testing files
+scratch/
+server/scratch/
+debug_db.js
+debug_db_details.js
+
