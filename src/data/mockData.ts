@@ -42,6 +42,17 @@ export interface PortfolioData {
   }[];
   achievements?: string[];
   languages?: { name: string; level: string }[];
+
+  // Custom Design Customize Settings
+  designSettings?: {
+    themeMode?: "dark" | "light";
+    accentColor?: string;
+    animationsEnabled?: boolean;
+    scanlinesEnabled?: boolean;
+    showOpportunitiesBadge?: boolean;
+    opportunitiesText?: string;
+    customCss?: string;
+  };
 }
 
 export const defaultPortfolioData: PortfolioData = {
@@ -53,6 +64,15 @@ export const defaultPortfolioData: PortfolioData = {
   phone: "+91 98765 43210",
   location: "Ananthapuramu, Andhra Pradesh, India",
   website: "https://rishi-212005.github.io/Personel-Portfolio/",
+  designSettings: {
+    themeMode: "dark",
+    accentColor: "hsl(190 95% 55%)",
+    animationsEnabled: true,
+    scanlinesEnabled: true,
+    showOpportunitiesBadge: true,
+    opportunitiesText: "AVAILABLE FOR OPPORTUNITIES",
+    customCss: ""
+  },
   skills: [
     "React", "TypeScript", "JavaScript",
     "Node.js", "Express", "PHP", "Python",
