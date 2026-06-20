@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Sparkles, Download, ExternalLink, Trash2, Moon, Sun, Palette, Copy, Check, X, Globe, Wand2, GripVertical } from "lucide-react";
+import { Send, Bot, User, Sparkles, Download, ExternalLink, Trash2, Moon, Sun, Palette, Copy, Check, X, Globe, Wand2, GripVertical, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,8 +47,6 @@ const Preview = () => {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [isDarkPreview, setIsDarkPreview] = useState(true);
-  const [selectedColor, setSelectedColor] = useState(0);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showRewriteModal, setShowRewriteModal] = useState(false);
@@ -60,6 +58,35 @@ const Preview = () => {
   const [portfolioData, setPortfolioData] = useState<PortfolioData>(defaultPortfolioData);
   const [portfolioLoaded, setPortfolioLoaded] = useState(false);
   const [portfolioLoadError, setPortfolioLoadError] = useState(false);
+  
+  // Undo/Revert State
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyList, setHistoryList] = useState<{ _id: string; description: string; timestamp: string }[]>([]);
+
+  // Computed Theme selectors
+  const isDarkPreview = portfolioData.designSettings?.themeMode !== "light";
+  const selectedColorIndex = themeColors.findIndex(
+    (c) => c.value === (portfolioData.designSettings?.accentColor || "hsl(190 95% 55%)")
+  );
+  const activeColorIndex = selectedColorIndex === -1 ? 0 : selectedColorIndex;
+
+  const fetchHistory = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio/history`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.history) {
+          setHistoryList(body.history);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch history list", err);
+    }
+  };
 
   const fetchPortfolio = async () => {
     const token = localStorage.getItem("auth_token");
@@ -73,7 +100,16 @@ const Preview = () => {
         const body = await res.json();
         if (body?.data) {
           setPortfolioData(body.data);
+          if (body?.chatHistory && body.chatHistory.length > 0) {
+            const restoredMessages = body.chatHistory.map((m: { role: "user" | "ai"; content: string; timestamp: string }) => ({
+              role: m.role,
+              content: m.content,
+              timestamp: new Date(m.timestamp)
+            }));
+            setMessages(restoredMessages);
+          }
           setPortfolioLoaded(true);
+          fetchHistory();
         } else {
           setPortfolioLoadError(true);
         }
@@ -95,7 +131,7 @@ const Preview = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const savePortfolio = async (updatedData: PortfolioData) => {
+  const savePortfolio = async (updatedData: PortfolioData, description = "Manual Save") => {
     const token = localStorage.getItem("auth_token");
     if (!token) return;
     try {
@@ -105,8 +141,13 @@ const Preview = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify({
+          data: updatedData,
+          chatHistory: messages,
+          description: description
+        }),
       });
+      fetchHistory();
     } catch (err) {
       console.error("Failed to save portfolio data automatically", err);
     }
@@ -115,17 +156,28 @@ const Preview = () => {
   const sendMessage = async (text?: string) => {
     const userMsg = (text || input).trim();
     if (!userMsg) return;
-    setMessages((prev) => [...prev, { role: "user", content: userMsg, timestamp: new Date() }]);
+    
+    const newUserMessage: ChatMessage = { role: "user", content: userMsg, timestamp: new Date() };
+    const currentMessages = [...messages, newUserMessage];
+    
+    setMessages(currentMessages);
     setInput("");
     setIsTyping(true);
 
     try {
+      const token = localStorage.getItem("auth_token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const res = await fetch(`${API_URL}/api/ai/edit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           portfolioData,
-          message: userMsg
+          message: userMsg,
+          chatHistory: messages // send past messages
         }),
       });
 
@@ -133,9 +185,17 @@ const Preview = () => {
         const body = await res.json();
         if (body?.updatedData && body?.explanation) {
           setPortfolioData(body.updatedData);
-          setMessages((prev) => [...prev, { role: "ai", content: body.explanation, timestamp: new Date() }]);
-          // Auto-save updated content
-          savePortfolio(body.updatedData);
+          if (body.chatHistory) {
+            const restoredMessages = body.chatHistory.map((m: { role: "user" | "ai"; content: string; timestamp: string }) => ({
+              role: m.role,
+              content: m.content,
+              timestamp: new Date(m.timestamp)
+            }));
+            setMessages(restoredMessages);
+          } else {
+            setMessages((prev) => [...prev, { role: "ai", content: body.explanation, timestamp: new Date() }]);
+          }
+          fetchHistory();
         } else {
           setMessages((prev) => [...prev, { role: "ai", content: "🤖 Received an invalid response structure from PortGen AI. Please try again.", timestamp: new Date() }]);
         }
@@ -151,6 +211,67 @@ const Preview = () => {
     }
   };
 
+  const handleRevert = async (historyId: string) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio/history/revert`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ historyId }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.data && body?.chatHistory) {
+          setPortfolioData(body.data);
+          const restoredMessages = body.chatHistory.map((m: { role: "user" | "ai"; content: string; timestamp: string }) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.timestamp)
+          }));
+          setMessages(restoredMessages);
+          setMessages((prev) => [
+            ...prev,
+            { role: "ai", content: `🔄 Reverted successfully to: "${body.message.replace('Reverted to checkpoint: ', '')}"`, timestamp: new Date() }
+          ]);
+          fetchHistory();
+          setShowHistory(false);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to revert checkpoint", err);
+    }
+  };
+
+  const toggleDarkMode = () => {
+    const newMode = isDarkPreview ? "light" : "dark";
+    const updatedData = {
+      ...portfolioData,
+      designSettings: {
+        ...portfolioData.designSettings,
+        themeMode: newMode
+      }
+    };
+    setPortfolioData(updatedData);
+    savePortfolio(updatedData, `Switched theme to ${newMode} mode`);
+  };
+
+  const changeColor = (colorIndex: number) => {
+    const newColor = themeColors[colorIndex];
+    const updatedData = {
+      ...portfolioData,
+      designSettings: {
+        ...portfolioData.designSettings,
+        accentColor: newColor.value
+      }
+    };
+    setPortfolioData(updatedData);
+    savePortfolio(updatedData, `Updated theme color to ${newColor.name.toLowerCase()}`);
+  };
+
   const handleDownload = async () => {
     const templateContainer = document.getElementById("portfolio-template-root");
     if (!templateContainer) {
@@ -159,7 +280,7 @@ const Preview = () => {
     }
     
     const renderedHtml = templateContainer.innerHTML;
-    const themeColor = themeColors[selectedColor].value;
+    const themeColor = themeColors[activeColorIndex].value;
     const isDark = isDarkPreview;
     const userName = portfolioData.name || "Portfolio";
     
@@ -300,6 +421,17 @@ Generated by PortGen AI 🚀
               </div>
             </div>
             <div className="flex gap-1">
+              <Button 
+                variant={showHistory ? "secondary" : "ghost"} 
+                size="icon" 
+                className="h-8 w-8 text-primary" 
+                onClick={() => { setShowHistory(!showHistory); if (!showHistory) fetchHistory(); }} 
+                title="Revision History"
+              >
+                <motion.div whileTap={{ rotate: -90 }}>
+                  <RotateCcw className="h-4 w-4" />
+                </motion.div>
+              </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={clearChat} title="Clear chat">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -334,7 +466,7 @@ Generated by PortGen AI 🚀
                 Theme Color
               </div>
               <button
-                onClick={() => setIsDarkPreview(!isDarkPreview)}
+                onClick={toggleDarkMode}
                 className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 {isDarkPreview ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
@@ -345,8 +477,8 @@ Generated by PortGen AI 🚀
               {themeColors.map((c, i) => (
                 <button
                   key={c.name}
-                  onClick={() => setSelectedColor(i)}
-                  className={`h-7 w-7 rounded-full transition-all ${selectedColor === i ? "ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110" : "hover:scale-110"}`}
+                  onClick={() => changeColor(i)}
+                  className={`h-7 w-7 rounded-full transition-all ${activeColorIndex === i ? "ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110" : "hover:scale-110"}`}
                   style={{ background: c.value }}
                   title={c.name}
                 />
@@ -389,43 +521,87 @@ Generated by PortGen AI 🚀
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-              >
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.role === "ai" ? "bg-primary/10" : "bg-secondary"}`}>
-                  {msg.role === "ai" ? <Bot className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-muted-foreground" />}
+          {/* Messages or History timeline */}
+          {showHistory ? (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Revision Checkpoints</h4>
+                <button 
+                  onClick={() => setShowHistory(false)} 
+                  className="text-xs text-primary hover:underline font-semibold"
+                >
+                  Back to Chat
+                </button>
+              </div>
+
+              {historyList.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground font-mono">
+                  No revisions found. Changes will appear here as you customize.
                 </div>
-                <div className="max-w-[80%] space-y-1">
-                  <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground" : "glass-card"}`}>
-                    <p className="whitespace-pre-line">{msg.content}</p>
+              ) : (
+                <div className="relative border-l border-border/30 ml-2.5 pl-4 space-y-4 py-2">
+                  {historyList.map((item) => (
+                    <div key={item._id} className="relative group">
+                      {/* Timeline dot */}
+                      <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border bg-background border-primary" />
+                      
+                      <div className="glass-card p-3 rounded-lg hover:border-primary/40 transition-all space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-medium text-foreground leading-snug">{item.description}</p>
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] text-muted-foreground font-mono">
+                          <span>{new Date(item.timestamp).toLocaleString()}</span>
+                          <button
+                            onClick={() => handleRevert(item._id)}
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            Revert
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((msg, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                >
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.role === "ai" ? "bg-primary/10" : "bg-secondary"}`}>
+                    {msg.role === "ai" ? <Bot className="h-4 w-4 text-primary" /> : <User className="h-4 w-4 text-muted-foreground" />}
                   </div>
-                  <p className="px-1 text-[10px] text-muted-foreground/50">
-                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-            {isTyping && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                  <Bot className="h-4 w-4 text-primary" />
-                </div>
-                <div className="glass-card flex items-center gap-1.5 rounded-2xl px-4 py-3">
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:0ms]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:150ms]" />
-                  <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:300ms]" />
-                </div>
-              </motion.div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
+                  <div className="max-w-[80%] space-y-1">
+                    <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground" : "glass-card"}`}>
+                      <p className="whitespace-pre-line">{msg.content}</p>
+                    </div>
+                    <p className="px-1 text-[10px] text-muted-foreground/50">
+                      {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+              {isTyping && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <Bot className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="glass-card flex items-center gap-1.5 rounded-2xl px-4 py-3">
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:0ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-bounce rounded-full bg-primary/60 [animation-delay:300ms]" />
+                  </div>
+                </motion.div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          )}
 
           {/* Input */}
           <div className="border-t border-border/30 p-4">
@@ -472,8 +648,9 @@ Generated by PortGen AI 🚀
                 templateId={template.id}
                 data={portfolioData}
                 isDark={isDarkPreview}
-                themeColor={themeColors[selectedColor].value}
+                themeColor={themeColors[activeColorIndex].value}
                 sectionOrder={sectionOrder}
+                isPreview={true}
               />
             ) : (
               <DraggablePortfolio
@@ -482,7 +659,7 @@ Generated by PortGen AI 🚀
                 sectionOrder={sectionOrder}
                 onReorder={handleReorder}
                 isDark={isDarkPreview}
-                themeColor={themeColors[selectedColor].value}
+                themeColor={themeColors[activeColorIndex].value}
               />
             )}
           </div>
