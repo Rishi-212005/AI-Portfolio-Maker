@@ -36,9 +36,80 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
+const projectSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, default: "" },
+  tags: { type: [String], default: [] },
+  link: { type: String, default: "" },
+  liveLink: { type: String, default: "" },
+  imageUrl: { type: String, default: "" }
+});
+
+const experienceSchema = new mongoose.Schema({
+  role: { type: String, required: true },
+  company: { type: String, required: true },
+  duration: { type: String, default: "" },
+  description: { type: String, default: "" }
+});
+
+const educationSchema = new mongoose.Schema({
+  degree: { type: String, required: true },
+  school: { type: String, required: true },
+  year: { type: String, default: "" }
+});
+
+const socialLinkSchema = new mongoose.Schema({
+  platform: { type: String, required: true },
+  url: { type: String, required: true }
+});
+
+const certificationSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  issuer: { type: String, required: true },
+  date: { type: String, default: "" },
+  imageUrl: { type: String, default: "" },
+  credentialUrl: { type: String, default: "" }
+});
+
+const languageSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  level: { type: String, default: "" }
+});
+
+const designSettingsSchema = new mongoose.Schema({
+  themeMode: { type: String, default: "dark" },
+  accentColor: { type: String, default: "hsl(190 95% 55%)" },
+  animationsEnabled: { type: Boolean, default: true },
+  scanlinesEnabled: { type: Boolean, default: true },
+  showOpportunitiesBadge: { type: Boolean, default: true },
+  opportunitiesText: { type: String, default: "AVAILABLE FOR OPPORTUNITIES" },
+  customCss: { type: String, default: "" }
+});
+
 const portfolioSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
-  data_json: { type: mongoose.Schema.Types.Mixed, required: true },
+  template_id: { type: String, default: "tech-minimalist" },
+  section_order: { 
+    type: [String], 
+    default: ["about", "skills", "projects", "experience", "education", "certifications", "contact"] 
+  },
+  name: { type: String, required: true },
+  title: { type: String, required: true },
+  about: { type: String, default: "" },
+  photo: { type: String, default: "" },
+  email: { type: String, default: "" },
+  phone: { type: String, default: "" },
+  location: { type: String, default: "" },
+  website: { type: String, default: "" },
+  skills: { type: [String], default: [] },
+  projects: { type: [projectSchema], default: [] },
+  experience: { type: [experienceSchema], default: [] },
+  education: { type: [educationSchema], default: [] },
+  socialLinks: { type: [socialLinkSchema], default: [] },
+  certifications: { type: [certificationSchema], default: [] },
+  achievements: { type: [String], default: [] },
+  languages: { type: [languageSchema], default: [] },
+  designSettings: { type: designSettingsSchema, default: () => ({}) },
   chat_history: { type: [mongoose.Schema.Types.Mixed], default: [] },
   updated_at: { type: Date, default: Date.now }
 });
@@ -54,6 +125,38 @@ const portfolioHistorySchema = new mongoose.Schema({
 });
 
 const PortfolioHistory = mongoose.model("PortfolioHistory", portfolioHistorySchema);
+
+function mapPortfolioToMongoose(data) {
+  if (!data) return {};
+  const updateFields = {
+    name: data.name,
+    title: data.title,
+    about: data.about || "",
+    photo: data.photo || "",
+    email: data.email || "",
+    phone: data.phone || "",
+    location: data.location || "",
+    website: data.website || "",
+    skills: Array.isArray(data.skills) ? data.skills : [],
+    projects: Array.isArray(data.projects) ? data.projects : [],
+    experience: Array.isArray(data.experience) ? data.experience : [],
+    education: Array.isArray(data.education) ? data.education : [],
+    socialLinks: Array.isArray(data.socialLinks) ? data.socialLinks : [],
+    certifications: Array.isArray(data.certifications) ? data.certifications : [],
+    achievements: Array.isArray(data.achievements) ? data.achievements : [],
+    languages: Array.isArray(data.languages) ? data.languages : [],
+    designSettings: data.designSettings || {},
+    updated_at: new Date()
+  };
+
+  if (data.templateId) {
+    updateFields.template_id = data.templateId;
+  }
+  if (data.sectionOrder) {
+    updateFields.section_order = data.sectionOrder;
+  }
+  return updateFields;
+}
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -177,20 +280,58 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const portfolio = await Portfolio.findOne({ user_id: userId });
+    let portfolio = await Portfolio.findOne({ user_id: userId });
 
     if (!portfolio) {
       return res.status(404).json({ message: "No portfolio found for user" });
     }
 
-    let data = portfolio.data_json;
-    if (typeof data === "string") {
-      try {
-        data = JSON.parse(data);
-      } catch {
-        return res.status(500).json({ message: "Failed to parse portfolio data" });
+    // Dynamic legacy data self-healing migration
+    if (!portfolio.name && portfolio.get("data_json")) {
+      console.log(`[Migration] Migrating legacy portfolio for user ${userId} to structured root fields...`);
+      let legacyData = portfolio.get("data_json");
+      if (typeof legacyData === "string") {
+        try {
+          legacyData = JSON.parse(legacyData);
+        } catch (e) {
+          console.error("[Migration] Failed to parse legacy data_json string:", e);
+        }
+      }
+      
+      if (legacyData && typeof legacyData === "object") {
+        const updateFields = mapPortfolioToMongoose(legacyData);
+        // Clear data_json so we don't migrate again
+        await Portfolio.updateOne(
+          { _id: portfolio._id },
+          { $set: updateFields, $unset: { data_json: "" } }
+        );
+        // Reload mutated document
+        portfolio = await Portfolio.findOne({ _id: portfolio._id });
       }
     }
+
+    // Map database structured fields to data object expected by frontend
+    const data = {
+      name: portfolio.name || "",
+      title: portfolio.title || "",
+      about: portfolio.about || "",
+      photo: portfolio.photo || "",
+      email: portfolio.email || "",
+      phone: portfolio.phone || "",
+      location: portfolio.location || "",
+      website: portfolio.website || "",
+      skills: portfolio.skills || [],
+      projects: portfolio.projects || [],
+      experience: portfolio.experience || [],
+      education: portfolio.education || [],
+      socialLinks: portfolio.socialLinks || [],
+      certifications: portfolio.certifications || [],
+      achievements: portfolio.achievements || [],
+      languages: portfolio.languages || [],
+      designSettings: portfolio.designSettings || {},
+      templateId: portfolio.template_id || "tech-minimalist",
+      sectionOrder: portfolio.section_order || ["about", "skills", "projects", "experience", "education", "certifications", "contact"]
+    };
 
     return res.json({ 
       data,
@@ -220,14 +361,15 @@ app.post("/api/portfolio", requireAuth, async (req, res) => {
   }
 
   try {
-    const updateFields = { data_json: data, updated_at: new Date() };
+    const updateFields = mapPortfolioToMongoose(data);
+
     if (req.body.chatHistory) {
       updateFields.chat_history = chatHistory;
     }
 
     const result = await Portfolio.findOneAndUpdate(
       { user_id: userId },
-      updateFields,
+      { $set: updateFields },
       { upsert: true, new: true }
     );
 
@@ -291,13 +433,12 @@ app.post("/api/ai/edit", async (req, res) => {
           ];
         }
 
+        const updateFields = mapPortfolioToMongoose(targetItem.portfolio_data);
+        updateFields.chat_history = updatedChatHistory;
+
         await Portfolio.findOneAndUpdate(
           { user_id: userId },
-          { 
-            data_json: targetItem.portfolio_data, 
-            chat_history: updatedChatHistory, 
-            updated_at: new Date() 
-          },
+          { $set: updateFields },
           { new: true }
         );
 
@@ -420,13 +561,12 @@ app.post("/api/ai/edit", async (req, res) => {
     }
 
     if (userId) {
+      const updateFields = mapPortfolioToMongoose(updatedData);
+      updateFields.chat_history = updatedChatHistory;
+
       await Portfolio.findOneAndUpdate(
         { user_id: userId },
-        { 
-          data_json: updatedData, 
-          chat_history: updatedChatHistory, 
-          updated_at: new Date() 
-        },
+        { $set: updateFields },
         { upsert: true }
       );
 
@@ -626,13 +766,12 @@ Respond with raw JSON only.`;
     }
 
     if (userId) {
+      const updateFields = mapPortfolioToMongoose(restoredData);
+      updateFields.chat_history = updatedChatHistory;
+
       await Portfolio.findOneAndUpdate(
         { user_id: userId },
-        { 
-          data_json: restoredData, 
-          chat_history: updatedChatHistory, 
-          updated_at: new Date() 
-        },
+        { $set: updateFields },
         { upsert: true }
       );
 
@@ -699,13 +838,12 @@ app.post("/api/portfolio/history/revert", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "History checkpoint not found" });
     }
 
+    const updateFields = mapPortfolioToMongoose(historyItem.portfolio_data);
+    updateFields.chat_history = historyItem.chat_history;
+
     const updatedPortfolio = await Portfolio.findOneAndUpdate(
       { user_id: userId },
-      { 
-        data_json: historyItem.portfolio_data, 
-        chat_history: historyItem.chat_history, 
-        updated_at: new Date() 
-      },
+      { $set: updateFields },
       { new: true }
     );
 
