@@ -34,6 +34,7 @@ interface Props {
   isDark?: boolean;
   themeColor?: string;
   sectionOrder?: string[];
+  isPreview?: boolean;
 }
 
 const ensureAbsoluteUrl = (url?: string): string => {
@@ -63,7 +64,7 @@ const ensureAbsoluteUrl = (url?: string): string => {
   return `https://${trimmed}`;
 };
 
-const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder }: Props) => {
+const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
   const defaultOrder = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const activeThemeColor = themeColor || "hsl(190 95% 55%)";
@@ -92,11 +93,11 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
   const renderTemplate = () => {
     switch (templateId) {
       case "tech-minimalist":
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
       case "retro-terminal":
         return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "glass-aurora":
-        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
       case "cyberpunk-glitch":
         return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       case "neobrutalist-bold":
@@ -112,7 +113,7 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
       case "dashboard-saas":
         return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
       default:
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
     }
   };
 
@@ -129,13 +130,14 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
         .theme-highlight-bg { background-color: var(--portfolio-primary) !important; }
         .theme-highlight-bg-opacity { background-color: var(--portfolio-primary-bg) !important; }
         .theme-highlight-border-opacity { border-color: var(--portfolio-primary-glow) !important; }
+        ${data.designSettings?.customCss || ""}
       `}</style>
 
       <div id="portfolio-template-root" className="w-full h-full">
         {renderTemplate()}
       </div>
 
-      <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} />
+      <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} isPreview={isPreview} />
     </div>
   );
 };
@@ -307,7 +309,7 @@ const SkillBadge = ({ skill, themeColor }: { skill: string; themeColor: string }
 };
 
 /* ====== 1. TECH MINIMALIST ====== */
-const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = false }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[]; isPreview?: boolean }) => {
   const [activeSection, setActiveSection] = useState("home");
   const [typedText, setTypedText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -448,7 +450,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
 
       {/* Scroll Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-[3px] z-50 origin-left"
+        className={`${isPreview ? "absolute" : "fixed"} top-0 left-0 right-0 h-[3px] z-50 origin-left`}
         style={{
           scaleX,
           backgroundColor: themeColor,
@@ -457,14 +459,16 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
       />
 
       {/* Sweeping laser scanline */}
-      <div 
-        className="pointer-events-none fixed inset-x-0 top-0 h-[2px] z-30 opacity-[0.12]"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${themeColor}, transparent)`,
-          boxShadow: `0 0 8px ${themeColor}, 0 0 15px ${themeColor}`,
-          animation: "scanline 10s linear infinite"
-        }}
-      />
+      {(!data.designSettings || data.designSettings.scanlinesEnabled !== false) && (
+        <div 
+          className={`pointer-events-none ${isPreview ? "absolute" : "fixed"} inset-x-0 top-0 h-[2px] z-30 opacity-[0.12]`}
+          style={{
+            background: `linear-gradient(90deg, transparent, ${themeColor}, transparent)`,
+            boxShadow: `0 0 8px ${themeColor}, 0 0 15px ${themeColor}`,
+            animation: "scanline 10s linear infinite"
+          }}
+        />
+      )}
 
       {/* Background status nodes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0 opacity-[0.04] text-[10px] font-mono">
@@ -569,16 +573,18 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder }: { data: Port
             </motion.div>
           )}
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-wider border font-semibold"
-            style={{ backgroundColor: `${themeColor}10`, color: themeColor, borderColor: `${themeColor}30` }}
-          >
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: themeColor }} />
-            AVAILABLE FOR OPPORTUNITIES
-          </motion.div>
+          {(!data.designSettings || data.designSettings.showOpportunitiesBadge !== false) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-wider border font-semibold"
+              style={{ backgroundColor: `${themeColor}10`, color: themeColor, borderColor: `${themeColor}30` }}
+            >
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: themeColor }} />
+              {data.designSettings?.opportunitiesText || "AVAILABLE FOR OPPORTUNITIES"}
+            </motion.div>
+          )}
 
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -1311,7 +1317,7 @@ const RetroTerminal = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
 
 
 /* ====== 3. GLASSMORPHIC AURORA ====== */
-const GlassAurora = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[]; isPreview?: boolean }) => {
   const [activeSection, setActiveSection] = useState("about");
   const sections = sectionOrder;
   
@@ -1328,7 +1334,7 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder }: { data: Portfol
       />
 
       {/* Floater navbar */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6">
+      <nav className={`${isPreview ? "absolute" : "fixed"} top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6`}>
         <div className={`backdrop-blur-xl border rounded-full px-6 py-3 flex items-center justify-between shadow-lg transition-colors duration-300 ${isDark ? "bg-slate-900/40 border-slate-700/20" : "bg-white/80 border-slate-200"}`}>
           <a href="#" className="font-black text-sm" style={{ color: themeColor }}>SRK</a>
           <div className="flex gap-4 text-xs font-semibold">
@@ -1355,12 +1361,14 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder }: { data: Portfol
           viewport={{ once: true }}
           className={`backdrop-blur-xl border p-10 rounded-3xl shadow-xl space-y-6 text-center transition-colors duration-300 ${isDark ? "bg-slate-900/30 border-slate-700/10" : "bg-white/70 border-slate-200"}`}
         >
-          <div 
-            className="inline-block border px-3 py-1 text-xs font-bold uppercase rounded-full shadow-inner tracking-widest animate-pulse"
-            style={{ backgroundColor: `${themeColor}15`, color: themeColor, borderColor: `${themeColor}20` }}
-          >
-            ● Available for Opportunities
-          </div>
+          {(!data.designSettings || data.designSettings.showOpportunitiesBadge !== false) && (
+            <div 
+              className="inline-block border px-3 py-1 text-xs font-bold uppercase rounded-full shadow-inner tracking-widest animate-pulse"
+              style={{ backgroundColor: `${themeColor}15`, color: themeColor, borderColor: `${themeColor}20` }}
+            >
+              ● {data.designSettings?.opportunitiesText || "Available for Opportunities"}
+            </div>
+          )}
           <h1 
             className="text-5xl font-black bg-clip-text text-transparent leading-none"
             style={{ backgroundImage: `linear-gradient(135deg, ${themeColor}, ${isDark ? "#c084fc" : "#6366f1"})` }}
@@ -4063,7 +4071,7 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
 };
 
 /* ====== FLOATING AI CHATBOT & ADMIN WIDGETS ====== */
-const FloatingWidgets = ({ data, themeColor }: { data: PortfolioData; themeColor: string }) => {
+const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: PortfolioData; themeColor: string; isPreview?: boolean }) => {
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: "visitor" | "bot"; text: string }[]>([
     { role: "bot", text: `Hi there! I am an AI assistant representing ${data.name}. Feel free to ask me about credentials, projects, work experience, or tech stacks!` }
@@ -4141,7 +4149,7 @@ const FloatingWidgets = ({ data, themeColor }: { data: PortfolioData; themeColor
   return (
     <>
       {/* Floating Buttons */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className={`${isPreview ? "absolute" : "fixed"} bottom-6 right-6 z-50`}>
         <button 
           onClick={() => setShowChat(!showChat)}
           className="h-12 w-12 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 active:scale-95 transition-all duration-200"
@@ -4152,7 +4160,7 @@ const FloatingWidgets = ({ data, themeColor }: { data: PortfolioData; themeColor
         </button>
       </div>
 
-      <div className="fixed bottom-6 left-6 z-50">
+      <div className={`${isPreview ? "absolute" : "fixed"} bottom-6 left-6 z-50`}>
         <button 
           onClick={() => setShowAdmin(true)}
           className="h-10 w-10 rounded-full flex items-center justify-center bg-slate-900/80 backdrop-blur-md border border-slate-800 text-slate-400 hover:text-white shadow-lg hover:scale-110 transition-all duration-200"
@@ -4169,7 +4177,7 @@ const FloatingWidgets = ({ data, themeColor }: { data: PortfolioData; themeColor
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
-            className="fixed bottom-20 right-6 z-50 w-80 sm:w-96 h-[480px] rounded-2xl flex flex-col bg-slate-950/95 border border-slate-900 shadow-2xl backdrop-blur-md overflow-hidden font-sans text-slate-200"
+            className={`${isPreview ? "absolute" : "fixed"} bottom-20 right-6 z-50 w-80 sm:w-96 h-[480px] rounded-2xl flex flex-col bg-slate-950/95 border border-slate-900 shadow-2xl backdrop-blur-md overflow-hidden font-sans text-slate-200`}
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-slate-900 flex items-center justify-between bg-slate-900/30">
@@ -4236,7 +4244,7 @@ const FloatingWidgets = ({ data, themeColor }: { data: PortfolioData; themeColor
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans text-slate-200"
+            className={`${isPreview ? "absolute" : "fixed"} inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans text-slate-200`}
             onClick={() => setShowAdmin(false)}
           >
             <motion.div 
