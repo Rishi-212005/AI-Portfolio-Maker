@@ -132,7 +132,7 @@ const Dashboard = () => {
         const res = await fetch(`${API_URL}/api/portfolio`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(data),
+          body: JSON.stringify({ data, description: "Auto-save from Dashboard" }),
         });
         if (res.ok) {
           setSaveStatus("saved");
@@ -159,7 +159,7 @@ const Dashboard = () => {
       await fetch(`${API_URL}/api/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ data, description: "Manual save from Dashboard" }),
       });
     } catch { /* noop */ } finally { setIsSaving(false); }
   };
@@ -171,7 +171,7 @@ const Dashboard = () => {
       const res = await fetch(`${API_URL}/api/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(parsed),
+        body: JSON.stringify({ data: parsed, description: "Resume Upload" }),
       });
       if (res.ok) navigate("/templates");
     } catch (err) { console.error(err); }
