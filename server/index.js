@@ -39,10 +39,21 @@ const User = mongoose.model("User", userSchema);
 const portfolioSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, unique: true },
   data_json: { type: mongoose.Schema.Types.Mixed, required: true },
+  chat_history: { type: [mongoose.Schema.Types.Mixed], default: [] },
   updated_at: { type: Date, default: Date.now }
 });
 
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
+
+const portfolioHistorySchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  portfolio_data: { type: mongoose.Schema.Types.Mixed, required: true },
+  chat_history: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  description: { type: String, default: "Manual Save" },
+  timestamp: { type: Date, default: Date.now }
+});
+
+const PortfolioHistory = mongoose.model("PortfolioHistory", portfolioHistorySchema);
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -181,7 +192,10 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
       }
     }
 
-    return res.json({ data });
+    return res.json({ 
+      data,
+      chatHistory: portfolio.chat_history || []
+    });
   } catch (err) {
     console.error("Get portfolio error", err);
     return res.status(500).json({ message: "Failed to load portfolio" });
@@ -190,21 +204,48 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
 
 app.post("/api/portfolio", requireAuth, async (req, res) => {
   const userId = req.user.id;
-  const data = req.body;
+  
+  let data = req.body;
+  let chatHistory = [];
+  let description = "Manual Save";
+
+  if (req.body && req.body.data && typeof req.body.data === "object") {
+    data = req.body.data;
+    chatHistory = req.body.chatHistory || [];
+    description = req.body.description || "Manual Save";
+  }
 
   if (!data || typeof data !== "object") {
     return res.status(400).json({ message: "Portfolio data is required" });
   }
 
   try {
+    const updateFields = { data_json: data, updated_at: new Date() };
+    if (req.body.chatHistory) {
+      updateFields.chat_history = chatHistory;
+    }
+
     const result = await Portfolio.findOneAndUpdate(
       { user_id: userId },
-      { data_json: data, updated_at: new Date() },
+      updateFields,
       { upsert: true, new: true }
     );
 
-    console.log(`[Portfolio] Saved for user ${userId} — keys: ${Object.keys(data).join(", ")}`);
-    return res.status(200).json({ message: "Portfolio saved", id: result._id });
+    // Save a history checkpoint
+    const historyEntry = new PortfolioHistory({
+      user_id: userId,
+      portfolio_data: data,
+      chat_history: result.chat_history || [],
+      description: description
+    });
+    await historyEntry.save();
+
+    console.log(`[Portfolio] Saved and snapshot created for user ${userId} — keys: ${Object.keys(data).join(", ")}`);
+    return res.status(200).json({ 
+      message: "Portfolio saved", 
+      id: result._id,
+      historyId: historyEntry._id
+    });
   } catch (err) {
     console.error("Save portfolio error", err);
     return res.status(500).json({ message: "Failed to save portfolio", error: err.message });
@@ -215,6 +256,96 @@ app.post("/api/ai/edit", async (req, res) => {
   const { portfolioData, message } = req.body;
   if (!portfolioData || !message) {
     return res.status(400).json({ message: "portfolioData and message are required" });
+  }
+
+  // Parse token if present
+  const authHeader = req.headers.authorization;
+  let userId = null;
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const token = authHeader.slice("Bearer ".length);
+      const payload = jwt.verify(token, jwtSecret);
+      userId = payload.id;
+    } catch (e) {
+      console.warn("Invalid token in AI edit:", e.message);
+    }
+  }
+
+  // Intercept Revert / Undo requests
+  const lowerMsg = message.toLowerCase().trim();
+  if (lowerMsg === "revert" || lowerMsg === "undo" || lowerMsg === "revert changes" || lowerMsg === "revert the changes" || lowerMsg.includes("undo the last change")) {
+    if (userId) {
+      const historyItems = await PortfolioHistory.find({ user_id: userId })
+        .sort({ timestamp: -1 })
+        .limit(2);
+      
+      if (historyItems && historyItems.length > 1) {
+        const targetItem = historyItems[1]; // retrieve second-to-last item (revert point)
+
+        let updatedChatHistory = [];
+        if (req.body.chatHistory) {
+          updatedChatHistory = [
+            ...req.body.chatHistory,
+            { role: "user", content: message, timestamp: new Date() },
+            { role: "ai", content: `🔄 Reverted successfully to: "${targetItem.description}"`, timestamp: new Date() }
+          ];
+        }
+
+        await Portfolio.findOneAndUpdate(
+          { user_id: userId },
+          { 
+            data_json: targetItem.portfolio_data, 
+            chat_history: updatedChatHistory, 
+            updated_at: new Date() 
+          },
+          { new: true }
+        );
+
+        const revertCheckpoint = new PortfolioHistory({
+          user_id: userId,
+          portfolio_data: targetItem.portfolio_data,
+          chat_history: updatedChatHistory,
+          description: `Reverted to: ${targetItem.description}`
+        });
+        await revertCheckpoint.save();
+
+        return res.json({
+          updatedData: targetItem.portfolio_data,
+          explanation: `🔄 Reverted successfully to: "${targetItem.description}"`,
+          chatHistory: updatedChatHistory
+        });
+      } else {
+        const explanation = "⚠️ I couldn't revert because there are no previous saved checkpoints in your history timeline.";
+        let updatedChatHistory = [];
+        if (req.body.chatHistory) {
+          updatedChatHistory = [
+            ...req.body.chatHistory,
+            { role: "user", content: message, timestamp: new Date() },
+            { role: "ai", content: explanation, timestamp: new Date() }
+          ];
+        }
+        return res.json({
+          updatedData: portfolioData,
+          explanation,
+          chatHistory: updatedChatHistory
+        });
+      }
+    } else {
+      const explanation = "⚠️ Revert history is only available when logged in with a database connection. Please register or log in first!";
+      let updatedChatHistory = [];
+      if (req.body.chatHistory) {
+        updatedChatHistory = [
+          ...req.body.chatHistory,
+          { role: "user", content: message, timestamp: new Date() },
+          { role: "ai", content: explanation, timestamp: new Date() }
+        ];
+      }
+      return res.json({
+        updatedData: portfolioData,
+        explanation,
+        chatHistory: updatedChatHistory
+      });
+    }
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -244,21 +375,79 @@ app.post("/api/ai/edit", async (req, res) => {
         }
         explanation = `🛠️ Local offline edit: Added skill "${newSkill}". Set up GEMINI_API_KEY to unlock full AI capability!`;
       }
+    } else if (lower.includes("remove opportunities badge") || lower.includes("hide opportunities badge") || lower.includes("opportunities badge")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.showOpportunitiesBadge = false;
+      explanation = "🎯 Local offline edit: Hidden the 'Available for Opportunities' badge. Set up GEMINI_API_KEY to unlock full AI capability!";
+    } else if (lower.includes("show opportunities badge") || lower.includes("enable opportunities badge")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.showOpportunitiesBadge = true;
+      explanation = "🎯 Local offline edit: Shown the 'Available for Opportunities' badge. Set up GEMINI_API_KEY to unlock full AI capability!";
+    } else if (lower.includes("opportunities text to") || lower.includes("opportunities badge text")) {
+      const match = message.match(/opportunities (?:badge )?text to\s+([a-zA-Z0-9\s!@#\$%\^&\*\(\)\-_\+=\[\]\{\};':",\.\/\\<>?|`~]+)/i);
+      if (match && match[1]) {
+        if (!updatedData.designSettings) updatedData.designSettings = {};
+        updatedData.designSettings.opportunitiesText = match[1].trim();
+        explanation = `🎯 Local offline edit: Updated opportunities badge text to "${updatedData.designSettings.opportunitiesText}".`;
+      }
+    } else if (lower.includes("disable animation") || lower.includes("turn off animation") || lower.includes("remove animation")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.animationsEnabled = false;
+      explanation = "🎬 Local offline edit: Disabled transitions and animations in template. Set up GEMINI_API_KEY to unlock full AI capability!";
+    } else if (lower.includes("enable animation") || lower.includes("turn on animation")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.animationsEnabled = true;
+      explanation = "🎬 Local offline edit: Enabled transitions and animations in template. Set up GEMINI_API_KEY to unlock full AI capability!";
+    } else if (lower.includes("disable scanline") || lower.includes("turn off scanline") || lower.includes("remove scanline")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.scanlinesEnabled = false;
+      explanation = "📺 Local offline edit: Removed scanlines and CRT grid effects. Set up GEMINI_API_KEY to unlock full AI capability!";
+    } else if (lower.includes("enable scanline") || lower.includes("turn on scanline")) {
+      if (!updatedData.designSettings) updatedData.designSettings = {};
+      updatedData.designSettings.scanlinesEnabled = true;
+      explanation = "📺 Local offline edit: Restored scanlines and CRT grid effects. Set up GEMINI_API_KEY to unlock full AI capability!";
     } else if (lower.includes("color") || lower.includes("theme")) {
       explanation = `🎨 Local offline edit: I see you want to change colors. You can use the quick theme color buttons at the top of the AI Editor panel!`;
     }
 
-    return res.json({ updatedData, explanation });
+    let updatedChatHistory = [];
+    if (req.body.chatHistory) {
+      updatedChatHistory = [
+        ...req.body.chatHistory,
+        { role: "user", content: message, timestamp: new Date() },
+        { role: "ai", content: explanation, timestamp: new Date() }
+      ];
+    }
+
+    if (userId) {
+      await Portfolio.findOneAndUpdate(
+        { user_id: userId },
+        { 
+          data_json: updatedData, 
+          chat_history: updatedChatHistory, 
+          updated_at: new Date() 
+        },
+        { upsert: true }
+      );
+
+      const historyEntry = new PortfolioHistory({
+        user_id: userId,
+        portfolio_data: updatedData,
+        chat_history: updatedChatHistory,
+        description: `Local Edit: ${explanation.slice(0, 100)}`
+      });
+      await historyEntry.save();
+    }
+
+    return res.json({ 
+      updatedData, 
+      explanation,
+      chatHistory: updatedChatHistory
+    });
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-      }
-    });
 
     // ── Compact payload for AI (saves tokens) ──────────────────────────────
     // We strip imageUrls (base64 = huge!) and truncate long text fields.
@@ -266,6 +455,15 @@ app.post("/api/ai/edit", async (req, res) => {
     // original data so nothing the AI didn't touch ever gets lost.
     const compactData = {
       ...portfolioData,
+      designSettings: {
+        themeMode: portfolioData.designSettings?.themeMode || "dark",
+        accentColor: portfolioData.designSettings?.accentColor || "hsl(190 95% 55%)",
+        animationsEnabled: portfolioData.designSettings?.animationsEnabled !== false,
+        scanlinesEnabled: portfolioData.designSettings?.scanlinesEnabled !== false,
+        showOpportunitiesBadge: portfolioData.designSettings?.showOpportunitiesBadge !== false,
+        opportunitiesText: portfolioData.designSettings?.opportunitiesText || "AVAILABLE FOR OPPORTUNITIES",
+        customCss: portfolioData.designSettings?.customCss || ""
+      },
       photo: portfolioData.photo ? "[profile-photo-preserved]" : "",
       about: portfolioData.about?.slice(0, 400),
       projects: (portfolioData.projects || []).map((p, i) => ({
@@ -299,6 +497,22 @@ Given the current portfolio JSON data and a user instruction, return ONLY a vali
 - "updatedData": the complete updated portfolio object (same structure as the input, with requested changes applied, all other fields preserved exactly). Do NOT include "_idx" fields in your response.
 - "explanation": a short friendly string describing what you changed
 
+Within the "updatedData" object, you have a "designSettings" field that controls the visual presentation, animations, and templates of the portfolio:
+- "themeMode": "dark" | "light" (Changes dark/light visual style)
+- "accentColor": string (Accent color, e.g., "hsl(190 95% 55%)", "hsl(270 80% 65%)", "hsl(220 90% 56%)", "hsl(150 80% 45%)", "hsl(25 95% 55%)" or custom hex codes)
+- "animationsEnabled": boolean (Set to false if user wants to stop/disable animations)
+- "scanlinesEnabled": boolean (Set to false if user wants to remove or toggle off scanlines/CRT lines)
+- "showOpportunitiesBadge": boolean (Set to false if user wants to remove the "Available for Opportunities" badge/pill)
+- "opportunitiesText": string (Custom text for the opportunities badge, e.g. "Available for Freelance", "Ready to Code", etc.)
+- "customCss": string (A string containing CSS overrides to apply custom styles like background colors, borders, font weights, custom animations, hover states, or color updates to section containers or titles. Keep it clean and valid CSS).
+
+CRITICAL INSTRUCTIONS:
+- You MUST NEVER respond that you cannot edit layouts, visual designs, or add animations/hover effects. 
+- You can fully customize and animate the portfolio by writing CSS rules into the "customCss" field of "designSettings".
+- To add animations (like float, slide, fade, rotate) or hover effects, write CSS class overrides in "customCss".
+  Example: ".glass-card:hover { transform: translateY(-6px); box-shadow: 0 10px 25px rgba(255,255,255,0.1); transition: all 0.4s ease; }" or keyframes styling.
+- To fulfill styling instructions ("make it look premium", "add shadows", "neon colors", "interactive hovering animations"), write elegant CSS overrides in "customCss".
+
 Current portfolio data:
 ${JSON.stringify(compactData, null, 2)}
 
@@ -306,27 +520,63 @@ User instruction: "${message}"
 
 Respond with raw JSON only.`;
 
-    let result;
-    let retries = 3;
-    let delayMs = 2000;
-    while (retries > 0) {
+    const modelsToTry = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-1.0-pro"
+    ];
+
+    let result = null;
+    let successModel = "";
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
       try {
-        result = await model.generateContent(prompt);
-        break;
-      } catch (err) {
-        if (err.status === 429 && retries > 1) {
-          console.warn(`[Gemini API] 429 rate limit. Retrying in ${delayMs}ms... (${retries - 1} retries left)`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          retries--;
-          delayMs *= 2;
-        } else {
-          throw err;
+        console.log(`[Gemini API] Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: "application/json",
+          }
+        });
+
+        let retries = 3;
+        let delayMs = 1500;
+        while (retries > 0) {
+          try {
+            result = await model.generateContent(prompt);
+            break;
+          } catch (err) {
+            if ((err.status === 429 || err.message?.includes("429")) && retries > 1) {
+              console.warn(`[Gemini API] 429 rate limit on ${modelName}. Retrying in ${delayMs}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+              retries--;
+              delayMs *= 2;
+            } else {
+              throw err;
+            }
+          }
         }
+        
+        if (result) {
+          successModel = modelName;
+          break;
+        }
+      } catch (err) {
+        console.error(`[Gemini API] Model ${modelName} failed:`, err.message);
+        lastError = err;
       }
     }
+
+    if (!result) {
+      throw lastError || new Error("All fallback models failed.");
+    }
+
+    console.log(`[Gemini API] Generated successfully using model: ${successModel}`);
     let responseText = result.response.text().trim();
 
-    // Strip markdown code fences if model wraps response
     if (responseText.startsWith("```")) {
       responseText = responseText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
     }
@@ -337,18 +587,11 @@ Respond with raw JSON only.`;
       throw new Error("Invalid AI response structure — missing updatedData or explanation.");
     }
 
-    // ── Merge AI response back with original to restore stripped fields ──────
-    // The AI worked on compact data (no imageUrls, truncated text).
-    // We must restore: photo, project imageUrls, cert imageUrls.
     const aiData = parsed.updatedData;
 
     const restoredData = {
       ...aiData,
-
-      // Always restore photo — AI never had the actual base64
       photo: portfolioData.photo || aiData.photo || "",
-
-      // Restore imageUrl for projects by matching on title (AI may reorder/add/remove)
       projects: (aiData.projects || []).map(aiProj => {
         const origMatch = (portfolioData.projects || []).find(
           op => op.title === aiProj.title
@@ -360,8 +603,6 @@ Respond with raw JSON only.`;
             : (origMatch?.imageUrl || "")
         };
       }),
-
-      // Restore imageUrl for certifications by matching on name
       certifications: (aiData.certifications || []).map(aiCert => {
         const origMatch = (portfolioData.certifications || []).find(
           oc => oc.name === aiCert.name
@@ -375,14 +616,43 @@ Respond with raw JSON only.`;
       })
     };
 
+    let updatedChatHistory = [];
+    if (req.body.chatHistory) {
+      updatedChatHistory = [
+        ...req.body.chatHistory,
+        { role: "user", content: message, timestamp: new Date() },
+        { role: "ai", content: parsed.explanation, timestamp: new Date() }
+      ];
+    }
+
+    if (userId) {
+      await Portfolio.findOneAndUpdate(
+        { user_id: userId },
+        { 
+          data_json: restoredData, 
+          chat_history: updatedChatHistory, 
+          updated_at: new Date() 
+        },
+        { upsert: true }
+      );
+
+      const historyEntry = new PortfolioHistory({
+        user_id: userId,
+        portfolio_data: restoredData,
+        chat_history: updatedChatHistory,
+        description: `AI: ${parsed.explanation}`
+      });
+      await historyEntry.save();
+    }
+
     return res.json({
       updatedData: restoredData,
-      explanation: parsed.explanation
+      explanation: parsed.explanation,
+      chatHistory: updatedChatHistory
     });
   } catch (err) {
     console.error("Gemini edit error:", err);
 
-    // Give specific, user-friendly error messages
     let userMessage = "AI customizer failed. Please try again.";
     if (err.status === 429) {
       userMessage = "⏳ Rate limit reached — please wait a few seconds and try again. (Gemini free-tier limit)";
@@ -396,6 +666,65 @@ Respond with raw JSON only.`;
       message: userMessage,
       error: err.message
     });
+  }
+});
+
+app.get("/api/portfolio/history", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const history = await PortfolioHistory.find({ user_id: userId })
+      .select("_id description timestamp")
+      .sort({ timestamp: -1 })
+      .limit(50);
+
+    return res.json({ history });
+  } catch (err) {
+    console.error("Get portfolio history error", err);
+    return res.status(500).json({ message: "Failed to load portfolio history" });
+  }
+});
+
+app.post("/api/portfolio/history/revert", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  const { historyId } = req.body;
+
+  if (!historyId) {
+    return res.status(400).json({ message: "historyId is required to revert" });
+  }
+
+  try {
+    const historyItem = await PortfolioHistory.findOne({ _id: historyId, user_id: userId });
+
+    if (!historyItem) {
+      return res.status(404).json({ message: "History checkpoint not found" });
+    }
+
+    const updatedPortfolio = await Portfolio.findOneAndUpdate(
+      { user_id: userId },
+      { 
+        data_json: historyItem.portfolio_data, 
+        chat_history: historyItem.chat_history, 
+        updated_at: new Date() 
+      },
+      { new: true }
+    );
+
+    const revertCheckpoint = new PortfolioHistory({
+      user_id: userId,
+      portfolio_data: historyItem.portfolio_data,
+      chat_history: historyItem.chat_history,
+      description: `Reverted to checkpoint: ${historyItem.description}`
+    });
+    await revertCheckpoint.save();
+
+    return res.json({
+      message: "Reverted successfully",
+      data: historyItem.portfolio_data,
+      chatHistory: historyItem.chat_history
+    });
+  } catch (err) {
+    console.error("Revert portfolio error", err);
+    return res.status(500).json({ message: "Failed to revert portfolio" });
   }
 });
 
