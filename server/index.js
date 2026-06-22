@@ -915,15 +915,397 @@ async function scanDirectory(dir, baseDir = dir) {
   return filesMap;
 }
 
-app.get("/api/portfolio/codebase-files", async (req, res) => {
+async function handleCodebaseFiles(req, res) {
   try {
-    const files = await scanDirectory(projectRoot);
+    const portfolioData = req.body?.portfolioData || req.query?.portfolioData || null;
+    const templateId = req.body?.templateId || req.query?.templateId || "minimalist";
+    const isDark = req.body?.isDark !== undefined ? req.body.isDark : true;
+    const themeColor = req.body?.themeColor || "hsl(190 95% 55%)";
+    const sectionOrder = req.body?.sectionOrder || [];
+
+    const files = {};
+
+    // 1. Load component and CSS files dynamically from builder project
+    const rendererPath = path.join(projectRoot, "src/components/PortfolioRenderer.tsx");
+    const cssPath = path.join(projectRoot, "src/index.css");
+    
+    const rendererContent = await fs.readFile(rendererPath, "utf-8");
+    const cssContent = await fs.readFile(cssPath, "utf-8");
+
+    // 2. Define package.json
+    files["package.json"] = JSON.stringify({
+      name: "my-react-portfolio",
+      private: true,
+      version: "1.0.0",
+      type: "module",
+      scripts: {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+      },
+      dependencies: {
+        "clsx": "^2.1.1",
+        "framer-motion": "^12.34.0",
+        "lucide-react": "^0.462.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "tailwind-merge": "^2.6.0",
+        "tailwindcss-animate": "^1.0.7"
+      },
+      devDependencies: {
+        "@types/react": "^18.3.23",
+        "@types/react-dom": "^18.3.7",
+        "@vitejs/plugin-react": "^4.3.4",
+        "autoprefixer": "^10.4.21",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^3.4.17",
+        "typescript": "^5.8.3",
+        "vite": "^5.4.19"
+      }
+    }, null, 2);
+
+    // 3. Define tailwind.config.js with ESM style matching builder configuration
+    files["tailwind.config.js"] = `import tailwindcssAnimate from "tailwindcss-animate";
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(40px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "slide-in-right": {
+          "0%": { transform: "translateX(100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        "typing": {
+          "0%": { width: "0" },
+          "100%": { width: "100%" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.6s ease-out forwards",
+        "fade-in-up": "fade-in-up 0.8s ease-out forwards",
+        "scale-in": "scale-in 0.3s ease-out",
+        "slide-in-right": "slide-in-right 0.3s ease-out",
+      },
+    },
+  },
+  plugins: [tailwindcssAnimate],
+};
+`;
+
+    // 4. Define postcss.config.js
+    files["postcss.config.js"] = `export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+`;
+
+    // 5. Define vite.config.ts
+    files["vite.config.ts"] = `import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+});
+`;
+
+    // 6. Define tsconfig.json
+    files["tsconfig.json"] = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "noFallthroughCasesInSwitch": false,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
+`;
+
+    // 7. Define .gitignore
+    files[".gitignore"] = `# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Output directory
+dist/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+`;
+
+    // 8. Define index.html
+    const userSafeName = (portfolioData?.name || "Personal").replace(/"/g, '&quot;');
+    files["index.html"] = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${userSafeName} | Portfolio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`;
+
+    // 9. Define src/main.tsx
+    files["src/main.tsx"] = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+`;
+
+    // 10. Define src/vite-env.d.ts
+    files["src/vite-env.d.ts"] = `/// <reference types="vite/client" />`;
+
+    // 11. Define src/index.css
+    files["src/index.css"] = cssContent;
+
+    // 12. Define src/components/PortfolioRenderer.tsx
+    files["src/components/PortfolioRenderer.tsx"] = rendererContent;
+
+    // 13. Define src/data/mockData.ts
+    const finalData = portfolioData || {
+      name: "Your Name",
+      title: "Your Title",
+      about: "About me...",
+      skills: [],
+      projects: [],
+      experience: [],
+      education: [],
+      socialLinks: [],
+      designSettings: {
+        themeMode: "dark",
+        accentColor: "hsl(190 95% 55%)",
+        animationsEnabled: true,
+        scanlinesEnabled: true,
+        showOpportunitiesBadge: true,
+        opportunitiesText: "AVAILABLE FOR OPPORTUNITIES",
+        customCss: ""
+      }
+    };
+
+    files["src/data/mockData.ts"] = `export interface PortfolioData {
+  name: string;
+  title: string;
+  about: string;
+  photo?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  skills: string[];
+  projects: {
+    title: string;
+    description: string;
+    tags: string[];
+    link: string;
+    liveLink?: string;
+    imageUrl?: string;
+  }[];
+  experience: {
+    role: string;
+    company: string;
+    duration: string;
+    description: string;
+  }[];
+  education: {
+    degree: string;
+    school: string;
+    year: string;
+  }[];
+  socialLinks: { platform: string; url: string }[];
+  certifications?: {
+    name: string;
+    issuer: string;
+    date: string;
+    imageUrl?: string;
+    credentialUrl?: string;
+  }[];
+  achievements?: string[];
+  languages?: { name: string; level: string }[];
+  designSettings?: {
+    themeMode?: "dark" | "light";
+    accentColor?: string;
+    animationsEnabled?: boolean;
+    scanlinesEnabled?: boolean;
+    showOpportunitiesBadge?: boolean;
+    opportunitiesText?: string;
+    customCss?: string;
+  };
+}
+
+export const defaultPortfolioData: PortfolioData = ${JSON.stringify(finalData, null, 2)};
+`;
+
+    // 14. Define src/App.tsx
+    files["src/App.tsx"] = `import { useState } from "react";
+import PortfolioRenderer from "./components/PortfolioRenderer";
+import { defaultPortfolioData } from "./data/mockData";
+
+function App() {
+  const [data] = useState(defaultPortfolioData);
+
+  return (
+    <PortfolioRenderer
+      templateId="${templateId}"
+      data={data}
+      isDark={${isDark}}
+      themeColor="${themeColor}"
+      sectionOrder={${JSON.stringify(sectionOrder)}}
+      isPreview={false}
+    />
+  );
+}
+
+export default App;
+`;
+
     return res.json({ files });
   } catch (err) {
-    console.error("Failed to scan directory:", err);
+    console.error("Failed to generate codebase files:", err);
     return res.status(500).json({ message: "Failed to read codebase files", error: err.message });
   }
-});
+}
+
+app.post("/api/portfolio/codebase-files", handleCodebaseFiles);
+app.get("/api/portfolio/codebase-files", handleCodebaseFiles);
 
 app.post("/api/ai/edit-code", async (req, res) => {
   const { portfolioData, message } = req.body;
