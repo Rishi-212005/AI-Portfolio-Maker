@@ -431,16 +431,22 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
   });
 
 /* ── Dynamic PDF.js loader ── */
-const loadPdfJs = (): Promise<any> => {
+interface PdfJsLib {
+  getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (i: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string }[] }> }> }> };
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+const loadPdfJs = (): Promise<PdfJsLib> => {
   return new Promise((resolve) => {
-    if ((window as any).pdfjsLib) {
-      resolve((window as any).pdfjsLib);
+    const w = window as typeof window & { pdfjsLib?: PdfJsLib };
+    if (w.pdfjsLib) {
+      resolve(w.pdfjsLib);
       return;
     }
     const script = document.createElement("script");
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js";
     script.onload = () => {
-      const pdfjsLib = (window as any).pdfjsLib;
+      const pdfjsLib = (window as typeof window & { pdfjsLib: PdfJsLib }).pdfjsLib;
       pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
       resolve(pdfjsLib);
     };
@@ -457,7 +463,7 @@ const extractTextFromPdf = async (file: File): Promise<string> => {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    const pageText = textContent.items.map((item: { str: string }) => item.str).join(" ");
     text += pageText + "\n";
   }
   return text;
