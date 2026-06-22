@@ -24,7 +24,10 @@ import {
   ArrowDown,
   MessageSquare,
   Lock,
-  Send
+  Send,
+  Bell,
+  Trash2,
+  Check
 } from "lucide-react";
 import type { PortfolioData } from "@/data/mockData";
 
@@ -63,8 +66,102 @@ const ensureAbsoluteUrl = (url?: string): string => {
   // Otherwise, default to prepending https://
   return `https://${trimmed}`;
 };
+const getApiUrl = () => {
+  if (typeof window !== "undefined") {
+    if (window.location.port === "8080" || window.location.hostname === "localhost") {
+      return "http://localhost:4000";
+    }
+  }
+  return "";
+};
+const API_URL = getApiUrl();
 
 const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
+  const [notifications, setNotifications] = useState<{ _id: string; name: string; email: string; message: string; is_read: boolean; createdAt: string }[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) return;
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.notifications) {
+          setNotifications(body.notifications);
+          setUnreadCount(body.notifications.filter((n: { is_read: boolean }) => !n.is_read).length);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to fetch notifications:", e);
+    }
+  };
+
+  const markAsRead = async (id: string) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) return;
+    try {
+      await fetch(`${API_URL}/api/portfolio/notifications/read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ notificationId: id })
+      });
+      fetchNotifications();
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) return;
+    try {
+      await fetch(`${API_URL}/api/portfolio/notifications/clear`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ notificationId: id })
+      });
+      fetchNotifications();
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) return;
+    try {
+      await fetch(`${API_URL}/api/portfolio/notifications/clear`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({})
+      });
+      fetchNotifications();
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  useEffect(() => {
+    if (isPreview) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isPreview]);
+
   const defaultOrder = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const activeThemeColor = themeColor || "hsl(190 95% 55%)";
@@ -99,27 +196,27 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
   const renderTemplate = () => {
     switch (templateId) {
       case "tech-minimalist":
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "retro-terminal":
-        return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "glass-aurora":
-        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
+        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "cyberpunk-glitch":
-        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "neobrutalist-bold":
-        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "elegant-serif":
-        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "gradient-spotlight":
-        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "interactive-timeline":
-        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "card-deck":
-        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "dashboard-saas":
-        return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} />;
+        return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       default:
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
     }
   };
 
@@ -139,9 +236,87 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
         ${data.designSettings?.customCss || ""}
       `}</style>
 
-      <div id="portfolio-template-root" className="w-full h-full">
+      <div id="portfolio-template-root" className="w-full h-full animate-fade-in">
         {renderTemplate()}
       </div>
+
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div 
+            initial={{ opacity: 0, y: 15, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 15, scale: 0.98 }}
+            className={`absolute top-16 right-6 z-[60] w-80 sm:w-96 max-h-[500px] flex flex-col bg-slate-900/95 border border-slate-800 text-slate-100 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden font-sans`}
+          >
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" style={{ color: activeThemeColor }} />
+                <span className="text-xs font-bold uppercase tracking-wider">Inbox Notifications</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <button 
+                    onClick={clearAllNotifications}
+                    className="text-[10px] text-zinc-500 hover:text-red-400 transition-colors uppercase font-bold"
+                  >
+                    Clear All
+                  </button>
+                )}
+                <button onClick={() => setShowNotifications(false)} className="text-slate-500 hover:text-slate-200 transition-colors ml-1">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[380px] scrollbar-thin select-text">
+              {notifications.length === 0 ? (
+                <div className="text-center py-10 text-xs text-zinc-500">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-25" />
+                  <p>No messages received yet.</p>
+                  <p className="text-[10px] mt-1 text-zinc-500/70">Submit the contact form to trigger a notification!</p>
+                </div>
+              ) : (
+                notifications.map((notif) => (
+                  <div 
+                    key={notif._id} 
+                    className={`p-3 rounded-xl border text-xs leading-normal transition-all relative ${notif.is_read ? "bg-slate-950/40 border-slate-900/60 opacity-60" : "bg-slate-950/90 border-slate-850"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div>
+                        <div className="font-bold text-white truncate max-w-[180px]">{notif.name}</div>
+                        <div className="text-[10px] text-zinc-500 truncate max-w-[180px]">{notif.email}</div>
+                      </div>
+                      <div className="flex gap-2 items-center shrink-0 select-none">
+                        {!notif.is_read && (
+                          <button 
+                            onClick={() => markAsRead(notif._id)}
+                            className="p-1 rounded bg-slate-850 hover:bg-slate-800 text-emerald-400 hover:text-emerald-300 transition-colors"
+                            title="Mark as Read"
+                          >
+                            <Check className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => deleteNotification(notif._id)}
+                          className="p-1 rounded bg-slate-850 hover:bg-slate-800 text-red-400 hover:text-red-300 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-zinc-300 bg-slate-950 border border-slate-900/60 p-2.5 rounded-lg whitespace-pre-wrap font-sans text-[11px] leading-relaxed select-text">{notif.message}</p>
+                    <div className="text-[9px] text-zinc-550 mt-2 text-right select-none">
+                      {new Date(notif.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} isPreview={isPreview} />
     </div>
@@ -172,38 +347,118 @@ const CommonContactForm = ({
   buttonStyle, 
   inputStyle, 
   buttonColor, 
-  buttonTextColor 
+  buttonTextColor,
+  portfolioId
 }: { 
   buttonStyle?: string; 
   inputStyle?: string; 
   buttonColor?: string; 
   buttonTextColor?: string; 
+  portfolioId?: string;
 }) => {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const handleSubmit = (e: React.FormEvent) => {
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setError(null);
+
+    // Fallback if no backend connection is active (e.g. standalone codebase download)
+    if (!portfolioId || !API_URL) {
+      setTimeout(() => {
+        setSubmitted(true);
+        setName("");
+        setEmail("");
+        setMessage("");
+        setIsSubmitting(false);
+        setTimeout(() => setSubmitted(false), 5000);
+      }, 500);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio/contact`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          portfolioId,
+          name,
+          email,
+          message
+        })
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        setName("");
+        setEmail("");
+        setMessage("");
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body.message || "Failed to send message.");
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Failed to reach the server.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {submitted ? (
-        <div className="p-4 bg-green-500/10 border border-green-500/20 text-green-400 rounded-md text-sm text-center">
+      {submitted && (
+        <div className="p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg text-xs text-center font-sans">
           ✅ Message sent successfully! I'll get back to you soon.
         </div>
-      ) : null}
-      <input type="text" placeholder="Your Name" required className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"} />
-      <input type="email" placeholder="Your Email" required className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"} />
-      <textarea placeholder="Your Message" rows={4} required className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"}></textarea>
+      )}
+      {error && (
+        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs text-center font-sans">
+          ❌ {error}
+        </div>
+      )}
+      <input 
+        type="text" 
+        placeholder="Your Name" 
+        required 
+        value={name}
+        onChange={e => setName(e.target.value)}
+        className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"} 
+      />
+      <input 
+        type="email" 
+        placeholder="Your Email" 
+        required 
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"} 
+      />
+      <textarea 
+        placeholder="Your Message" 
+        rows={4} 
+        required 
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        className={inputStyle || "w-full p-2.5 bg-white/5 border border-white/10 rounded-md text-sm text-white focus:outline-none focus:border-primary"}
+      ></textarea>
       <button
         type="submit"
-        className={buttonStyle || "w-full py-2.5 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/95 transition-colors"}
+        disabled={isSubmitting}
+        className={buttonStyle || "w-full py-2.5 bg-primary text-primary-foreground font-semibold rounded-md hover:bg-primary/95 transition-colors disabled:opacity-50"}
         style={buttonColor || buttonTextColor ? { 
           backgroundColor: buttonColor, 
           color: buttonTextColor || "#fff" 
         } : undefined}
       >
-        Send Message
+        {isSubmitting ? "Sending..." : "Send Message"}
       </button>
     </form>
   );
@@ -315,7 +570,25 @@ const SkillBadge = ({ skill, themeColor }: { skill: string; themeColor: string }
 };
 
 /* ====== 1. TECH MINIMALIST ====== */
-const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = false }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[]; isPreview?: boolean }) => {
+const TechMinimalist = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder, 
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[]; 
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const [activeSection, setActiveSection] = useState("home");
   const [typedText, setTypedText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -374,9 +647,9 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
     return () => window.removeEventListener("scroll", handleScroll);
   }, [sectionOrder]);
 
-  const bg = isDark ? "bg-slate-950 text-slate-100" : "bg-gray-50 text-slate-900";
+  const bg = isDark ? "bg-slate-950 text-slate-100" : "bg-[#FAF9F5] text-slate-800";
   const cardBg = isDark ? "bg-slate-900/60 border-slate-800" : "bg-white border-slate-200";
-  const muted = isDark ? "text-slate-400" : "text-slate-500";
+  const muted = isDark ? "text-slate-400" : "text-slate-600";
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 40 },
@@ -530,9 +803,25 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
             </a>
           ))}
         </div>
-        <button className="sm:hidden p-1 rounded transition-colors" onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
-          {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-3">
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1.5 rounded-full hover:bg-slate-850/10 dark:hover:bg-slate-800/40 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4.5 w-4.5" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button className="sm:hidden p-1 rounded transition-colors" onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </nav>
 
       {/* Mobile Menu */}
@@ -1131,6 +1420,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
                       inputStyle={`w-full p-3 border rounded-sm text-xs font-mono focus:outline-none transition-colors ${isDark ? "bg-slate-900 border-slate-800 text-white focus:border-slate-700 placeholder:text-slate-600" : "bg-slate-50 border-slate-200 text-slate-900 focus:border-slate-300 placeholder:text-slate-400"}`}
                       buttonStyle={`w-full py-3 font-bold rounded-sm uppercase tracking-widest text-xs transition-all hover:opacity-90 hover:scale-[1.01]`}
                       buttonColor={themeColor}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -1152,9 +1442,26 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
   );
 };
 
-
 /* ====== 2. RETRO TERMINAL (INTERACTIVE CLI) ====== */
-const RetroTerminal = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const RetroTerminal = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const hostUser = useMemo(() => (data.name || "user").toLowerCase().replace(/\s+/g, "-"), [data.name]);
   const hostPrompt = `visitor@${hostUser}-portfolio:~$`;
 
@@ -1274,6 +1581,15 @@ echo "Active Tunnels  :"
 ${(data.socialLinks || []).map(l => `echo "  - [${l.platform}] ${l.url}"`).join("\n")}
 echo "---------------------------------------------------------"
 echo "Session transmission completed. Terminal returning."`
+      },
+      "send_message.sh": {
+        label: "send_message.sh",
+        lang: "bash",
+        content: `#!/bin/bash
+# CLI Message Wizard Uplink
+# Click here or run \`./send_message.sh\` in terminal to start sending a message!
+
+./send_message.sh`
       }
     };
     return fileMap;
@@ -1289,6 +1605,8 @@ echo "Session transmission completed. Terminal returning."`
     ""
   ]);
   const [cmdInput, setCmdInput] = useState("");
+  const [wizardStep, setWizardStep] = useState(0); // 0 = off, 1 = name, 2 = email, 3 = message
+  const [wizardData, setWizardData] = useState({ name: "", email: "" });
   
   const endRef = useRef<HTMLDivElement>(null);
   const editorScrollRef = useRef<HTMLDivElement>(null);
@@ -1300,6 +1618,10 @@ echo "Session transmission completed. Terminal returning."`
 
   // Click file from sidebar
   const handleSelectFile = (fileName: string) => {
+    if (fileName === "send_message.sh") {
+      executeCommand("./send_message.sh");
+      return;
+    }
     if (!openTabs.includes(fileName)) {
       setOpenTabs(prev => [...prev, fileName]);
     }
@@ -1335,6 +1657,90 @@ echo "Session transmission completed. Terminal returning."`
   const executeCommand = (command: string) => {
     const raw = command.trim();
     if (!raw) return;
+
+    if (wizardStep > 0) {
+      let nextStep = wizardStep;
+      const nextData = { ...wizardData };
+      let promptLines: string[] = [];
+
+      if (wizardStep === 1) {
+        nextData.name = raw;
+        nextStep = 2;
+        promptLines = [
+          `> Name: ${raw}`,
+          "Please enter your email address:",
+        ];
+      } else if (wizardStep === 2) {
+        nextData.email = raw;
+        nextStep = 3;
+        promptLines = [
+          `> Email: ${raw}`,
+          "Please enter your message:",
+        ];
+      } else if (wizardStep === 3) {
+        nextStep = 0;
+        promptLines = [
+          `> Message: ${raw}`,
+          "Transmitting packet payload to host database...",
+        ];
+
+        const submitWizardMessage = async () => {
+          if (!portfolioId || !API_URL) {
+            setTimeout(() => {
+              setHistory(prev => [
+                ...prev,
+                "[UPLINK SYSTEM: OFFLINE]",
+                "✓ Message successfully delivered (offline fallback mode)!",
+                ""
+              ]);
+            }, 600);
+            return;
+          }
+          try {
+            const res = await fetch(`${API_URL}/api/portfolio/contact`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                portfolioId,
+                name: nextData.name,
+                email: nextData.email,
+                message: raw
+              })
+            });
+            if (res.ok) {
+              setHistory(prev => [
+                ...prev,
+                "[STATUS: SUCCESS]",
+                "✓ Message successfully delivered & stored in portfolio owner database!",
+                ""
+              ]);
+            } else {
+              const body = await res.json().catch(() => ({}));
+              setHistory(prev => [
+                ...prev,
+                `❌ Transmission failed: ${body.message || "Server rejected payload"}`,
+                ""
+              ]);
+            }
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : "Uplink unreachable";
+            setHistory(prev => [
+              ...prev,
+              `❌ Connection error: ${msg}`,
+              ""
+            ]);
+          }
+        };
+        submitWizardMessage();
+      }
+
+      setWizardData(nextData);
+      setWizardStep(nextStep);
+      setHistory(prev => [...prev, `${raw}`, ...promptLines, ""]);
+      setCmdInput("");
+      return;
+    }
+
     const lower = raw.toLowerCase();
     let res: string[] = [];
 
@@ -1371,6 +1777,24 @@ echo "Session transmission completed. Terminal returning."`
       handleSelectFile("contact.sh");
       return;
     }
+    if (lower === "send_message.sh" || lower === "cat send_message.sh") {
+      handleSelectFile("send_message.sh");
+      return;
+    }
+
+    if (lower === "./send_message.sh" || lower === "sh send_message.sh" || lower === "run send_message.sh") {
+      setWizardStep(1);
+      setWizardData({ name: "", email: "" });
+      setHistory(prev => [
+        ...prev,
+        `${hostPrompt} ${raw}`,
+        "Initializing secure message uplink process...",
+        "Please enter your name:",
+        ""
+      ]);
+      setCmdInput("");
+      return;
+    }
 
     switch (lower) {
       case "help":
@@ -1380,6 +1804,7 @@ echo "Session transmission completed. Terminal returning."`
           "  cat [file]     Print target file in terminal (e.g. cat skills.json)",
           "  clear          Wipe terminal logging history",
           "  whoami         Query currently logged in host mainframe metadata",
+          "  ./send_message.sh  Execute interactive messaging wizard",
           "",
           "Workstation Files:",
           "  welcome.txt    General system greeting & guidelines",
@@ -1389,7 +1814,8 @@ echo "Session transmission completed. Terminal returning."`
           "  experience.md  Chronological employment history",
           "  education.md   Academic achievements",
           "  certs.json     Authorized licenses and credentials",
-          "  contact.sh     Uplink execution script for socials/network"
+          "  contact.sh     Uplink execution script for socials/network",
+          "  send_message.sh Executive contact wrapper script"
         ];
         break;
       case "ls":
@@ -1402,7 +1828,8 @@ echo "Session transmission completed. Terminal returning."`
           "  -rw-r--r--   1 visitor  staff   1.4K Jun 22 21:44 experience.md",
           "  -rw-r--r--   1 visitor  staff   620B Jun 22 21:44 education.md",
           "  -rw-r--r--   1 visitor  staff   810B Jun 22 21:44 certs.json",
-          "  -rwxr-xr-x   1 visitor  staff   980B Jun 22 21:44 contact.sh"
+          "  -rwxr-xr-x   1 visitor  staff   980B Jun 22 21:44 contact.sh",
+          "  -rwxr-xr-x   1 visitor  staff   420B Jun 22 21:44 send_message.sh"
         ];
         break;
       case "whoami":
@@ -1431,15 +1858,15 @@ echo "Session transmission completed. Terminal returning."`
   const activeLang = files[activeFile]?.lang || "plaintext";
 
   return (
-    <div className={`h-[85vh] min-h-[580px] max-h-[850px] font-mono border-2 flex flex-col md:flex-row justify-between relative overflow-hidden transition-all duration-300 ${isDark ? "bg-black border-green-950 text-green-400" : "bg-stone-900 border-stone-850 text-green-500"}`}>
+    <div className={`h-[85vh] min-h-[580px] max-h-[850px] font-mono border-2 flex flex-col md:flex-row justify-between relative overflow-hidden transition-all duration-300 ${isDark ? "bg-black border-green-950 text-green-400" : "bg-[#F3F2EE] border-stone-400 text-stone-900"}`}>
       {/* Blinking CRT scanline laser overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.18)_50%)] bg-[size:100%_4px] pointer-events-none opacity-25 z-30" />
       
       {/* 1. LEFT FILE TREE SIDEBAR */}
-      <aside className={`w-full md:w-52 flex flex-col justify-between shrink-0 border-b md:border-b-0 md:border-r z-15 ${isDark ? "border-green-950 bg-black" : "border-stone-800 bg-stone-950 text-green-500/90"}`} style={{ borderColor: `${themeColor}25` }}>
+      <aside className={`w-full md:w-52 flex flex-col justify-between shrink-0 border-b md:border-b-0 md:border-r z-15 ${isDark ? "border-green-950 bg-black" : "border-stone-300 bg-[#E5E5DF] text-stone-800"}`} style={isDark ? { borderColor: `${themeColor}25` } : {}}>
         <div>
           {/* Workspace Header */}
-          <div className="p-3 border-b flex items-center gap-1.5 text-[10px] tracking-wider uppercase font-black" style={{ color: themeColor, borderColor: `${themeColor}20` }}>
+          <div className="p-3 border-b flex items-center gap-1.5 text-[10px] tracking-wider uppercase font-black" style={{ color: isDark ? themeColor : "#1c1917", borderColor: isDark ? `${themeColor}20` : "#d6d3d1" }}>
             <Terminal className="h-3.5 w-3.5" />
             <span>EXPLORER : SRC</span>
           </div>
@@ -1454,18 +1881,23 @@ echo "Session transmission completed. Terminal returning."`
                 const isJson = fName.endsWith(".json");
                 const isMd = fName.endsWith(".md");
 
-                let fileColor = "text-green-500";
-                if (isActive) fileColor = "text-white font-bold bg-green-950/40 rounded-sm";
-                else if (isExecutable) fileColor = "text-amber-500 hover:text-amber-400";
-                else if (isJson) fileColor = "text-cyan-400 hover:text-cyan-300";
-                else if (isMd) fileColor = "text-blue-400 hover:text-blue-300";
+                let fileColor = isDark ? "text-green-500" : "text-stone-750 hover:text-stone-900";
+                if (isActive) {
+                  fileColor = isDark ? "text-white font-bold bg-green-950/40 rounded-sm" : "text-stone-950 font-bold bg-stone-300/80 rounded-sm";
+                } else if (isExecutable) {
+                  fileColor = isDark ? "text-amber-500 hover:text-amber-400" : "text-amber-700 hover:text-amber-800";
+                } else if (isJson) {
+                  fileColor = isDark ? "text-cyan-400 hover:text-cyan-300" : "text-cyan-750 hover:text-cyan-905";
+                } else if (isMd) {
+                  fileColor = isDark ? "text-blue-400 hover:text-blue-300" : "text-blue-750 hover:text-blue-905";
+                }
                 
                 return (
                   <button
                     key={fName}
                     onClick={() => handleSelectFile(fName)}
                     className={`w-full text-left py-1 px-1.5 flex items-center gap-1.5 cursor-pointer transition-colors text-[11px] ${fileColor}`}
-                    style={isActive ? { borderLeft: `2px solid ${themeColor}` } : {}}
+                    style={isActive && isDark ? { borderLeft: `2px solid ${themeColor}` } : isActive ? { borderLeft: `2px solid #1c1917` } : {}}
                   >
                     <span>{isExecutable ? "⚙" : isJson ? "{}" : isMd ? "☰" : "📄"}</span>
                     <span className="truncate">{fName}</span>
@@ -1477,53 +1909,69 @@ echo "Session transmission completed. Terminal returning."`
         </div>
 
         {/* System Node Info Footer */}
-        <div className="p-3 border-t text-[10px] text-zinc-500 select-none hidden md:block" style={{ borderColor: `${themeColor}20` }}>
+        <div className="p-3 border-t text-[10px] text-zinc-500 select-none hidden md:block" style={{ borderColor: isDark ? `${themeColor}20` : "#d6d3d1" }}>
           <div>NODE: ONLINE</div>
           <div className="truncate">USR: {hostUser}</div>
         </div>
       </aside>
 
       {/* 2. RIGHT WORKSPACE (TABS + FILE WRITER + BOTTOM TERMINAL) */}
-      <section className="flex-1 flex flex-col justify-between overflow-hidden relative bg-black">
+      <section className={`flex-1 flex flex-col justify-between overflow-hidden relative ${isDark ? "bg-black" : "bg-[#F3F2EE]"}`}>
         {/* TOP TAB ROW */}
-        <div className={`flex border-b text-[10px] uppercase font-bold shrink-0 overflow-x-auto ${isDark ? "border-green-950 bg-neutral-950" : "border-stone-850 bg-stone-900"}`} style={{ borderColor: `${themeColor}20` }}>
-          {openTabs.map((tabName) => {
-            const isActive = activeFile === tabName;
-            return (
-              <div
-                key={tabName}
-                onClick={() => setActiveFile(tabName)}
-                className={`py-2 px-3.5 border-r cursor-pointer flex items-center gap-2 transition-colors select-none ${isActive ? "bg-black text-white border-b-2" : "text-zinc-500 hover:text-zinc-300"}`}
-                style={isActive ? { borderBottomColor: themeColor, borderRightColor: `${themeColor}20` } : { borderRightColor: `${themeColor}20` }}
-              >
-                <span>{tabName}</span>
-                {openTabs.length > 1 && (
-                  <button onClick={(e) => handleCloseTab(e, tabName)} className="hover:text-red-400 transition-colors ml-1 font-bold">×</button>
-                )}
-              </div>
-            );
-          })}
+        <div className={`flex border-b text-[10px] uppercase font-bold shrink-0 items-center justify-between ${isDark ? "border-green-950 bg-neutral-950" : "border-stone-300 bg-[#D9D8D2] text-stone-850"}`} style={{ borderColor: isDark ? `${themeColor}20` : "#d6d3d1" }}>
+          <div className="flex overflow-x-auto">
+            {openTabs.map((tabName) => {
+              const isActive = activeFile === tabName;
+              return (
+                <div
+                  key={tabName}
+                  onClick={() => setActiveFile(tabName)}
+                  className={`py-2 px-3.5 border-r cursor-pointer flex items-center gap-2 transition-colors select-none ${isActive ? (isDark ? "bg-black text-white border-b-2" : "bg-[#F3F2EE] text-stone-950 font-bold border-b-2") : (isDark ? "text-zinc-500 hover:text-zinc-300" : "text-stone-500 hover:text-stone-700")}`}
+                  style={isActive ? { borderBottomColor: isDark ? themeColor : "#1c1917", borderRightColor: isDark ? `${themeColor}20` : "#d6d3d1" } : { borderRightColor: isDark ? `${themeColor}20` : "#d6d3d1" }}
+                >
+                  <span>{tabName}</span>
+                  {openTabs.length > 1 && (
+                    <button onClick={(e) => handleCloseTab(e, tabName)} className="hover:text-red-400 transition-colors ml-1 font-bold">×</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1.5 mr-3 rounded-full hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: isDark ? themeColor : "#1c1917" }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* MIDDLE CODE VIEWER */}
         <div 
           ref={editorScrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 text-xs md:text-sm leading-relaxed border-b bg-black/45 scrollbar-thin select-text" 
-          style={{ borderColor: `${themeColor}20` }}
+          className={`flex-1 overflow-y-auto p-4 md:p-6 text-xs md:text-sm leading-relaxed border-b scrollbar-thin select-text ${isDark ? "bg-black/45 border-green-950" : "bg-white border-stone-300"}`} 
+          style={isDark ? { borderColor: `${themeColor}20` } : {}}
         >
           {activeFile && (
             <div className="font-mono">
               {/* Tab Header breadcrumb */}
-              <div className="text-[10px] text-zinc-600 mb-3 select-none">// Workspace: src/{activeFile} ({activeLang})</div>
+              <div className="text-[10px] text-zinc-650 mb-3 select-none">// Workspace: src/{activeFile} ({activeLang})</div>
               
               {/* Code text content mapping line numbers */}
               <div className="flex">
-                <div className="w-8 shrink-0 text-zinc-700 select-none text-right pr-3 font-semibold border-r border-zinc-900">
+                <div className={`w-8 shrink-0 text-right pr-3 font-semibold border-r select-none ${isDark ? "text-zinc-700 border-zinc-900" : "text-stone-400 border-stone-200"}`}>
                   {activeContent.split("\n").map((_, lineIdx) => (
                     <div key={lineIdx}>{lineIdx + 1}</div>
                   ))}
                 </div>
-                <pre className="pl-4 flex-1 whitespace-pre-wrap overflow-x-auto text-emerald-400" style={{ color: activeFile.endsWith(".sh") ? "#f59e0b" : activeFile.endsWith(".json") ? "#22d3ee" : undefined }}>
+                <pre className={`pl-4 flex-1 whitespace-pre-wrap overflow-x-auto ${isDark ? "text-emerald-400" : "text-stone-850"}`} style={{ color: activeFile.endsWith(".sh") ? (isDark ? "#f59e0b" : "#b45309") : activeFile.endsWith(".json") ? (isDark ? "#22d3ee" : "#0891b2") : undefined }}>
                   <code>{activeContent}</code>
                 </pre>
               </div>
@@ -1532,17 +1980,17 @@ echo "Session transmission completed. Terminal returning."`
         </div>
 
         {/* BOTTOM SHELL PANEL CONTAINER */}
-        <div className="h-44 md:h-52 flex flex-col justify-between shrink-0 bg-neutral-950 font-mono text-[11px] md:text-xs">
+        <div className={`h-44 md:h-52 flex flex-col justify-between shrink-0 font-mono text-[11px] md:text-xs ${isDark ? "bg-neutral-950" : "bg-[#E5E5DF]"}`}>
           {/* Console Header tab */}
-          <div className="px-3 py-1.5 border-b flex items-center justify-between text-[9px] text-zinc-500 select-none" style={{ borderColor: `${themeColor}20` }}>
+          <div className={`px-3 py-1.5 border-b flex items-center justify-between text-[9px] text-zinc-500 select-none ${isDark ? "border-green-950" : "border-stone-300"}`} style={isDark ? { borderColor: `${themeColor}20` } : {}}>
             <span>TERMINAL : SH SHELL</span>
             <span>PORT_LOAD: 8080/TCP</span>
           </div>
 
           {/* Console logger window */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1 select-text scrollbar-thin">
+          <div className={`flex-1 overflow-y-auto p-3 space-y-1 select-text scrollbar-thin ${isDark ? "text-green-400" : "text-stone-900 bg-white"}`}>
             {history.map((line, lineIdx) => (
-              <p key={lineIdx} className="whitespace-pre-wrap leading-relaxed" style={{ color: line.startsWith("visitor@") ? "#f59e0b" : undefined }}>
+              <p key={lineIdx} className="whitespace-pre-wrap leading-relaxed" style={{ color: line.startsWith("visitor@") ? (isDark ? "#f59e0b" : "#b45309") : undefined }}>
                 {line}
               </p>
             ))}
@@ -1550,22 +1998,27 @@ echo "Session transmission completed. Terminal returning."`
           </div>
 
           {/* Terminal prompt keyboard input */}
-          <div className="border-t p-2 flex items-center gap-1.5 shrink-0 bg-black" style={{ borderColor: `${themeColor}20` }}>
-            <span className="shrink-0 text-amber-500 font-bold select-none">{hostPrompt}</span>
+          <div className={`border-t p-2 flex items-center gap-1.5 shrink-0 ${isDark ? "bg-black border-green-950" : "bg-[#FAF8F5] border-stone-300"}`} style={isDark ? { borderColor: `${themeColor}20` } : {}}>
+            <span className="shrink-0 font-bold select-none" style={{ color: isDark ? "#f59e0b" : "#b45309" }}>{hostPrompt}</span>
             <form onSubmit={(e) => { e.preventDefault(); executeCommand(cmdInput); }} className="flex-1 flex gap-2">
               <input 
                 type="text" 
                 value={cmdInput} 
                 onChange={(e) => setCmdInput(e.target.value)} 
-                placeholder="Type 'help' or click files above..."
-                className="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 font-mono text-xs text-green-400"
-                style={{ color: themeColor }}
+                placeholder={
+                  wizardStep === 1 ? "Enter your name..." :
+                  wizardStep === 2 ? "Enter your email..." :
+                  wizardStep === 3 ? "Enter your message text..." :
+                  "Type 'help' or click files above..."
+                }
+                className={`flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 font-mono text-xs ${isDark ? "text-green-400" : "text-stone-900"}`}
+                style={isDark ? { color: themeColor } : {}}
                 autoFocus 
               />
               <button 
                 type="submit" 
                 className="border text-[10px] px-3.5 py-1 uppercase font-bold rounded-sm cursor-pointer transition-colors"
-                style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}05` }}
+                style={isDark ? { color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}05` } : { color: "#1c1917", borderColor: "#a8a29e", backgroundColor: "#f5f5f4" }}
               >
                 RUN
               </button>
@@ -1578,8 +2031,30 @@ echo "Session transmission completed. Terminal returning."`
 };
 
 
+
+
+
+
 /* ====== 3. GLASSMORPHIC AURORA ====== */
-const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[]; isPreview?: boolean }) => {
+const GlassAurora = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder, 
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[]; 
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const [activeSection, setActiveSection] = useState("about");
   const sections = sectionOrder;
   
@@ -1603,7 +2078,7 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
       <nav className={`${isPreview ? "absolute" : "fixed"} top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6`}>
         <div className={`backdrop-blur-xl border rounded-full px-6 py-3 flex items-center justify-between shadow-lg transition-colors duration-300 ${isDark ? "bg-slate-900/40 border-slate-700/20" : "bg-white/80 border-slate-200"}`}>
           <a href="#" className="font-black text-sm" style={{ color: themeColor }}>{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
-          <div className="flex gap-4 text-xs font-semibold">
+          <div className="flex items-center gap-4 text-xs font-semibold">
             {sections.map(sec => (
               <a 
                 key={sec} 
@@ -1615,6 +2090,20 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
                 {sec.slice(0, 4)}
               </a>
             ))}
+            {isPreview && onOpenNotifications && (
+              <button
+                onClick={onOpenNotifications}
+                className="relative p-1 rounded-full hover:bg-slate-500/10 dark:hover:bg-slate-300/10 transition-colors"
+                title="Open Inbox Messages"
+              >
+                <Bell className="h-4 w-4" style={{ color: themeColor }} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -1995,6 +2484,7 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
                       inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none ${isDark ? "bg-slate-950 border-slate-850 text-white focus:border-slate-800" : "bg-slate-50 border-slate-200 text-slate-900 focus:border-slate-350"}`}
                       buttonStyle="w-full py-2.5 font-bold rounded-xl hover:opacity-90 uppercase tracking-widest text-xs transition-opacity"
                       buttonColor={themeColor}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.div>
@@ -2015,19 +2505,37 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
 
 
 /* ====== 4. CYBERPUNK GLITCH ====== */
-const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const CyberpunkGlitch = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const [activeSection, setActiveSection] = useState("about");
   const sections = sectionOrder;
   
   return (
-    <div className={`min-h-screen font-mono py-16 px-6 relative transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" : "bg-white text-zinc-900 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))]"} bg-[size:100%_4px,3px_100%] overflow-hidden`}>
+    <div className={`min-h-screen font-mono py-16 px-6 relative transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" : "bg-[#FAF9F6] text-zinc-900 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))]"} bg-[size:100%_4px,3px_100%] overflow-hidden`}>
       {/* Cyberpunk neon grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
       <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full blur-[130px] pointer-events-none opacity-20 z-0" style={{ backgroundColor: themeColor }} />
       {/* Sticky Glitch Nav */}
-      <nav className={`sticky top-0 z-40 pb-3 flex items-center justify-between mb-10 border-b-2 transition-colors duration-300 ${isDark ? "bg-zinc-950 border-slate-900" : "bg-white border-zinc-200"}`}>
+      <nav className={`sticky top-0 z-40 pb-3 flex items-center justify-between mb-10 border-b-2 transition-colors duration-300 ${isDark ? "bg-zinc-950 border-slate-900" : "bg-[#FAF9F6] border-zinc-200"}`}>
         <a href="#" className="font-black tracking-widest text-sm" style={{ color: themeColor }}>// CYBER_PORT</a>
-        <div className="flex gap-4 text-[10px] font-bold">
+        <div className="flex items-center gap-4 text-[10px] font-bold">
           {sections.map(sec => (
             <a 
               key={sec} 
@@ -2039,6 +2547,20 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -2413,6 +2935,7 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
                       buttonStyle="w-full py-2.5 font-extrabold rounded-none uppercase tracking-widest text-xs transition-opacity hover:opacity-90"
                       buttonColor={themeColor}
                       buttonTextColor={isDark ? "#020617" : "#ffffff"}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -2433,15 +2956,33 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
 
 
 /* ====== 5. NEOBRUTALIST BOLD ====== */
-const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const NeobrutalistBold = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const sections = sectionOrder;
   
   return (
-    <div className={`min-h-screen font-sans pb-20 px-6 transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100" : "bg-amber-50/50 text-zinc-950"}`}>
+    <div className={`min-h-screen font-sans pb-20 px-6 transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100" : "bg-[#FFFBEB] text-zinc-950"}`}>
       {/* Sticky Brutalist Nav */}
-      <nav className={`sticky top-0 z-40 border-b-4 border-black py-4 px-2 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-zinc-900 text-white" : "bg-amber-100 text-black"}`}>
+      <nav className={`sticky top-0 z-40 border-b-4 border-black py-4 px-2 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-zinc-900 text-white" : "bg-[#FFFBEB] text-black"}`}>
         <a href="#" className="text-xl font-black tracking-tighter border-4 border-black bg-white text-black px-3 py-1 shadow-[2px_2px_0px_#000]">{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
-        <div className="flex gap-2 sm:gap-4 text-xs font-black uppercase">
+        <div className="flex items-center gap-2 sm:gap-4 text-xs font-black uppercase">
           {sections.map(sec => (
             <a 
               key={sec} 
@@ -2451,6 +2992,20 @@ const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: Po
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative hover:bg-cyan-200 border-2 border-black bg-white text-black p-1 transition-colors shadow-[1.5px_1.5px_0px_#000] cursor-pointer"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4.5 w-4.5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white border border-black rounded-full text-[8px] h-4.5 w-4.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -2802,6 +3357,7 @@ const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: Po
                     <CommonContactForm 
                       inputStyle={`w-full p-2.5 border-2 border-black text-xs focus:outline-none font-bold ${isDark ? "bg-zinc-800 text-white focus:bg-zinc-900" : "bg-white text-black focus:bg-yellow-50"}`}
                       buttonStyle="w-full py-2.5 bg-black text-white hover:bg-zinc-800 font-black rounded-none uppercase tracking-widest text-xs shadow-[3px_3px_0px_#000]" 
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -2822,15 +3378,33 @@ const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: Po
 
 
 /* ====== 6. ELEGANT EDITORIAL ====== */
-const ElegantEditorial = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const ElegantEditorial = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const sections = sectionOrder;
   
   return (
-    <div className={`min-h-screen font-serif py-16 px-6 transition-colors duration-300 ${isDark ? "bg-[#1c1917] text-[#fcfbf9]" : "bg-[#fcfbf9] text-[#1c1917]"}`}>
+    <div className={`min-h-screen font-serif py-16 px-6 transition-colors duration-300 ${isDark ? "bg-[#1c1917] text-[#fcfbf9]" : "bg-[#FDFBF7] text-[#1c1917]"}`}>
       {/* Sticky Editorial Nav */}
-      <nav className={`sticky top-0 z-50 backdrop-blur-md border-b py-4 px-2 flex items-center justify-between font-sans mb-10 transition-colors duration-300 ${isDark ? "bg-[#1c1917]/95 border-stone-800" : "bg-[#fcfbf9]/95 border-[#292524]"}`}>
+      <nav className={`sticky top-0 z-50 backdrop-blur-md border-b py-4 px-2 flex items-center justify-between font-sans mb-10 transition-colors duration-300 ${isDark ? "bg-[#1c1917]/95 border-stone-800" : "bg-[#FDFBF7]/95 border-[#292524]"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-widest" style={{ color: themeColor }}>{data.name.split(" ").map(w => w[0]).join("")} .</a>
-        <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+        <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
           {sections.map(sec => (
             <a 
               key={sec} 
@@ -2841,6 +3415,20 @@ const ElegantEditorial = ({ data, isDark, themeColor, sectionOrder }: { data: Po
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1 rounded hover:bg-stone-500/10 dark:hover:bg-[#fcfbf9]/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -3149,6 +3737,7 @@ const ElegantEditorial = ({ data, isDark, themeColor, sectionOrder }: { data: Po
                     <CommonContactForm 
                       inputStyle={`w-full p-2.5 bg-transparent border rounded-none text-xs focus:outline-none font-serif italic ${isDark ? "border-stone-800 text-stone-200 focus:border-stone-700" : "border-stone-300 text-stone-800 focus:border-stone-800"}`}
                       buttonStyle="w-full py-2.5 bg-stone-900 text-white font-bold rounded-none hover:bg-stone-800 uppercase tracking-widest text-xs" 
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -3169,7 +3758,25 @@ const ElegantEditorial = ({ data, isDark, themeColor, sectionOrder }: { data: Po
 
 
 /* ====== 7. CREATIVE SPOTLIGHT ====== */
-const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const GradientSpotlight = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const [activeSection, setActiveSection] = useState("about");
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -3212,7 +3819,7 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
     <div 
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="min-h-screen bg-zinc-955 text-white font-sans py-16 px-6 relative overflow-hidden"
+      className={`min-h-screen font-sans py-16 px-6 relative overflow-hidden transition-colors duration-350 ${isDark ? "bg-[#09090b] text-white" : "bg-[#f4f4f5] text-zinc-900"}`}
     >
       {/* Spotlight cursor radial glow */}
       <div 
@@ -3220,27 +3827,41 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
         style={{ 
           left: mousePos.x, 
           top: mousePos.y,
-          background: `radial-gradient(circle, ${themeColor}15 0%, transparent 70%)`
+          background: `radial-gradient(circle, ${themeColor}${isDark ? "15" : "10"} 0%, transparent 70%)`
         }}
       />
       
       {/* Sticky Nav */}
-      <nav className="sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-900 pb-3 flex items-center justify-between mb-12">
+      <nav className={`sticky top-0 z-50 backdrop-blur-md pb-3 flex items-center justify-between mb-12 border-b transition-colors duration-300 ${isDark ? "bg-[#09090b]/80 border-zinc-900" : "bg-[#f4f4f5]/80 border-zinc-200"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-widest" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')}.IO
         </a>
-        <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+        <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
           {sections.map(sec => (
             <a 
               key={sec} 
               href={`#${sec}`} 
               onClick={() => setActiveSection(sec)}
-              className="hover:text-white transition-colors"
+              className="hover:text-zinc-400 transition-colors"
               style={{ color: activeSection === sec ? themeColor : "#71717a" }}
             >
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -3250,12 +3871,12 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${themeColor}, #818cf8, #c084fc)` }}>
             {data.name}
           </h1>
-          <p className="text-lg md:text-2xl text-zinc-300 max-w-xl leading-relaxed font-light">{data.title}</p>
+          <p className={`text-lg md:text-2xl max-w-xl leading-relaxed font-light ${isDark ? "text-zinc-300" : "text-zinc-600"}`}>{data.title}</p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4 items-start sm:items-center">
-            <a href="#projects" className="text-zinc-950 font-bold text-xs py-3.5 px-8 rounded-xl uppercase tracking-wider transition-opacity hover:opacity-90" style={{ backgroundColor: themeColor }}>
+            <a href="#projects" className="font-bold text-xs py-3.5 px-8 rounded-xl uppercase tracking-wider transition-opacity hover:opacity-90" style={{ backgroundColor: themeColor, color: isDark ? "#020617" : "#ffffff" }}>
               View Work
             </a>
-            <a href="#contact" className="text-white border border-zinc-800 hover:border-zinc-700 font-bold text-xs py-3.5 px-8 rounded-xl uppercase tracking-wider transition-colors">
+            <a href="#contact" className={`font-bold text-xs py-3.5 px-8 rounded-xl uppercase tracking-wider transition-colors border ${isDark ? "text-white border-zinc-800 hover:border-zinc-700" : "text-zinc-800 border-zinc-300 hover:border-zinc-400"}`}>
               Contact Me
             </a>
           </div>
@@ -3302,13 +3923,14 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
                   <h2 className="uppercase tracking-widest text-xs font-bold font-mono" style={{ color: themeColor }}>// TOOL INVENTORY</h2>
                   <div className="flex flex-wrap gap-2.5">
                     {data.skills.map((s) => (
-                      <span 
-                        key={s} 
-                        className="rounded-xl bg-zinc-900/40 border border-zinc-800 text-zinc-300 px-4 py-2.5 text-xs font-medium shadow-md hover:border-zinc-700 transition-all hover:-translate-y-0.5"
+                      <motion.span
+                        key={s}
+                        whileHover={{ scale: 1.05, y: -2, borderColor: themeColor }}
+                        className={`rounded-xl border px-4 py-2.5 text-xs font-medium shadow-md transition-all ${isDark ? "bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:border-zinc-700" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300 shadow-sm"}`}
                         style={{ borderBottomColor: `${themeColor}40` }}
                       >
                         {s}
-                      </span>
+                      </motion.span>
                     ))}
                   </div>
                 </motion.section>
@@ -3468,9 +4090,10 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
                       </div>
                     </div>
                     <CommonContactForm 
-                      inputStyle="w-full p-2.5 bg-zinc-900/60 border border-zinc-800 rounded-xl text-xs text-zinc-350 focus:outline-none focus:border-zinc-700 font-mono"
-                      buttonStyle="w-full py-2.5 text-zinc-950 font-extrabold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90 animate-pulse hover:animate-none" 
+                      inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none font-mono ${isDark ? "bg-zinc-900/60 border-zinc-800 text-zinc-350 focus:border-zinc-700" : "bg-white border-zinc-200 text-zinc-850 focus:border-zinc-350 shadow-sm"}`}
+                      buttonStyle={`w-full py-2.5 font-extrabold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90 ${isDark ? "text-zinc-950" : "text-white"}`}
                       buttonColor={themeColor}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -3491,13 +4114,31 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
 
 
 /* ====== 8. PRODUCT TIMELINE ====== */
-const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const InteractiveTimeline = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const sections = sectionOrder;
 
   const containerBg = isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800";
   const headerText = isDark ? "text-white" : "text-slate-900";
   const cardBg = isDark ? "bg-slate-900/40 border-slate-850" : "bg-white border-slate-200";
-  const mutedText = isDark ? "text-slate-400" : "text-slate-500";
+  const mutedText = isDark ? "text-slate-400" : "text-slate-655";
 
   const sectionVariants = {
     hidden: { opacity: 0, x: -20 },
@@ -3511,7 +4152,7 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
         <a href="#" className="font-extrabold text-sm uppercase tracking-wider" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')} TIMELINE
         </a>
-        <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+        <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
           {sections.map(sec => (
             <a 
               key={sec} 
@@ -3522,19 +4163,33 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
       {/* Hero Section */}
       <div className="max-w-3xl mx-auto min-h-[60vh] flex flex-col justify-center border-l-4 pl-6 md:pl-10 space-y-6 relative" style={{ borderColor: themeColor }}>
-        <div className="absolute -left-[10px] top-[14%] w-4 h-4 rounded-full border-4 border-white shadow-md animate-pulse" style={{ backgroundColor: themeColor }} />
+        <div className="absolute -left-[10px] top-[14%] w-4 h-4 rounded-full border-4 shadow-md animate-pulse" style={{ backgroundColor: themeColor, borderColor: isDark ? "#020617" : "#f8fafc" }} />
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
           {data.photo && (
             <img src={data.photo} alt={data.name} className="h-28 w-28 rounded-full object-cover border-4" style={{ borderColor: themeColor }} />
           )}
           <div className="space-y-2">
             <h1 className={`text-4xl md:text-6xl font-extrabold tracking-tight leading-none ${headerText}`}>{data.name}</h1>
-            <p className="text-sm font-semibold uppercase tracking-wider mt-1 animate-pulse" style={{ color: themeColor }}>{data.title}</p>
+            <p className="text-sm font-semibold uppercase tracking-wider mt-1" style={{ color: themeColor }}>{data.title}</p>
           </div>
         </div>
         <p className={`text-sm leading-relaxed max-w-xl ${mutedText}`}>{data.about}</p>
@@ -3745,6 +4400,7 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
                       inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:ring-1 ${isDark ? "bg-slate-900 border-slate-800 text-white focus:border-slate-700 focus:ring-slate-700" : "bg-white border-slate-250 text-slate-900 focus:border-slate-350 focus:ring-slate-350"}`}
                       buttonStyle="w-full py-2.5 text-white font-bold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90" 
                       buttonColor={themeColor}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -3765,13 +4421,31 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
 
 
 /* ====== 9. 3D CARD DECK ====== */
-const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const CardDeck = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const sections = sectionOrder;
 
-  const bg = isDark ? "bg-slate-955 text-slate-100" : "bg-slate-50 text-slate-800";
-  const cardBg = isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200";
+  const bg = isDark ? "bg-slate-955 text-slate-100" : "bg-[#FAF9F5] text-slate-800";
+  const cardBg = isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-md";
   const headerText = isDark ? "text-white" : "text-slate-900";
-  const mutedText = isDark ? "text-slate-400" : "text-slate-500";
+  const mutedText = isDark ? "text-slate-400" : "text-slate-655";
 
   const sectionVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -3781,11 +4455,11 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
   return (
     <div className={`min-h-screen py-16 px-6 font-sans transition-colors duration-300 ${bg}`}>
       {/* Sticky Deck Nav */}
-      <nav className={`sticky top-0 z-50 border-b pb-3 flex items-center justify-between mb-12 ${isDark ? "bg-slate-950/80 border-slate-900" : "bg-slate-50/80 border-slate-200"}`}>
+      <nav className={`sticky top-0 z-50 border-b pb-3 flex items-center justify-between mb-12 backdrop-blur-md ${isDark ? "bg-slate-950/80 border-slate-900" : "bg-[#FAF9F5]/80 border-slate-200"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-wider" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')} DECK
         </a>
-        <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider">
+        <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
           {sections.map(sec => (
             <a 
               key={sec} 
@@ -3796,6 +4470,20 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
               {sec.slice(0, 4)}
             </a>
           ))}
+          {isPreview && onOpenNotifications && (
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Open Inbox Messages"
+            >
+              <Bell className="h-4 w-4" style={{ color: themeColor }} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
@@ -3861,7 +4549,14 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
                   <h2 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>Skills Inventory</h2>
                   <div className="flex flex-wrap gap-2">
                     {data.skills.map((s) => (
-                      <span key={s} className="bg-slate-900/60 text-slate-350 rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-inner border border-slate-800/40">{s}</span>
+                      <motion.span
+                        key={s}
+                        whileHover={{ scale: 1.06, borderColor: themeColor }}
+                        className={`rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-inner border transition-all ${isDark ? "bg-slate-900/60 text-slate-350 border-slate-800/40" : "bg-slate-50 text-slate-700 border-slate-200"}`}
+                        style={{ color: themeColor }}
+                      >
+                        {s}
+                      </motion.span>
                     ))}
                   </div>
                 </motion.section>
@@ -3984,7 +4679,7 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
                   <h2 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>Languages</h2>
                   <div className="flex flex-wrap gap-2">
                     {data.languages.map(l => (
-                      <span key={l.name} className="bg-slate-900 px-3.5 py-1.5 rounded text-xs border border-slate-800" style={{ color: themeColor }}>
+                      <span key={l.name} className={`px-3.5 py-1.5 rounded text-xs border ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200 shadow-sm"}`} style={{ color: themeColor }}>
                         {l.name} · {l.level}
                       </span>
                     ))}
@@ -4022,6 +4717,7 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
                       inputStyle={`w-full p-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 ${isDark ? "bg-slate-900 border-slate-800 text-indigo-400 focus:border-slate-700 focus:ring-slate-700" : "bg-white border-slate-250 text-slate-800 focus:border-slate-350 focus:ring-slate-350"}`}
                       buttonStyle="w-full py-2.5 text-zinc-950 font-bold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90" 
                       buttonColor={themeColor}
+                      portfolioId={portfolioId}
                     />
                   </div>
                 </motion.section>
@@ -4042,7 +4738,25 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
 
 
 /* ====== 10. SAAS DEVELOPER (DASHBOARD TABS) ====== */
-const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+const DashboardSaas = ({ 
+  data, 
+  isDark, 
+  themeColor, 
+  sectionOrder,
+  isPreview = false,
+  unreadCount = 0,
+  onOpenNotifications,
+  portfolioId
+}: { 
+  data: PortfolioData; 
+  isDark?: boolean; 
+  themeColor: string; 
+  sectionOrder: string[];
+  isPreview?: boolean;
+  unreadCount?: number;
+  onOpenNotifications?: () => void;
+  portfolioId?: string;
+}) => {
   const sections = sectionOrder;
   
   // Construct tabs dynamically based on the sectionOrder (respecting drag and drop ordering)
@@ -4081,19 +4795,22 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
   }, [tabs, activeTab]);
 
   const renderActiveTabContent = () => {
+    const cardStyle = isDark ? "bg-slate-900 border border-slate-850" : "bg-slate-50 border border-slate-200";
+    const cardMuted = isDark ? "text-slate-400" : "text-slate-600";
+    const statCard = isDark ? "bg-slate-900/40 border border-slate-850" : "bg-white border border-slate-200 shadow-sm";
     switch (activeTab) {
       case "about":
         return (
           <div className="space-y-6">
-            <div className="bg-slate-900 border border-slate-850 p-6 rounded-xl space-y-4">
-              <div className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">// OPERATIONAL INTRO</div>
+            <div className={`p-6 rounded-xl space-y-4 ${cardStyle}`}>
+              <div className="text-[10px] font-mono tracking-widest uppercase" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// OPERATIONAL INTRO</div>
               <div className="flex flex-col md:flex-row gap-6 items-start">
                 {data.photo && (
-                  <img src={data.photo} alt={data.name} className="h-24 w-24 rounded-xl object-cover border border-slate-800" />
+                  <img src={data.photo} alt={data.name} className="h-24 w-24 rounded-xl object-cover border" style={{ borderColor: `${themeColor}40` }} />
                 )}
                 <div className="space-y-2">
-                  <p className="text-lg font-light text-slate-200">{data.title}</p>
-                  <p className="text-sm leading-relaxed text-slate-400 font-light">{data.about}</p>
+                  <p className="text-lg font-light" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{data.title}</p>
+                  <p className={`text-sm leading-relaxed font-light ${cardMuted}`}>{data.about}</p>
                 </div>
               </div>
             </div>
@@ -4104,8 +4821,8 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
                 { label: "EXPERIENCE_STATIONS", val: data.experience.length },
                 { label: "SKILLS_REGISTERED", val: data.skills.length },
               ].map((stat) => (
-                <div key={stat.label} className="bg-slate-900/40 border border-slate-850 p-4 rounded-xl font-mono">
-                  <div className="text-[9px] text-slate-500">{stat.label}</div>
+                <div key={stat.label} className={`p-4 rounded-xl font-mono ${statCard}`}>
+                  <div className="text-[9px]" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{stat.label}</div>
                   <div className="text-lg font-bold mt-1" style={{ color: themeColor }}>{stat.val}</div>
                 </div>
               ))}
@@ -4115,23 +4832,27 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "skills":
         return (
           <div className="space-y-6">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Stack Packages & Core Engine Nodes</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Stack Packages & Core Engine Nodes</div>
             <div className="grid gap-4 sm:grid-cols-2">
               {data.skills.map((s, idx) => {
                 const percentage = 75 + (idx * 7) % 25;
                 const barFilled = Math.round(percentage / 10);
                 const barStr = "█".repeat(barFilled) + "░".repeat(10 - barFilled);
                 return (
-                  <div key={s} className="bg-slate-900 border border-slate-850 p-4 rounded-xl font-mono text-xs flex flex-col justify-between hover:border-slate-800 transition-colors">
+                  <motion.div
+                    key={s}
+                    whileHover={{ scale: 1.02, borderColor: themeColor }}
+                    className={`p-4 rounded-xl font-mono text-xs flex flex-col justify-between transition-all border ${isDark ? "bg-slate-900 border-slate-850 hover:border-slate-800" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"}`}
+                  >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-slate-200 font-bold">{s}</span>
-                      <span className="text-slate-500">{percentage}% Capacity</span>
+                      <span className="font-bold" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{s}</span>
+                      <span style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{percentage}% Capacity</span>
                     </div>
                     <div className="text-[10px] tracking-wider font-semibold font-mono flex items-center gap-2">
                       <span style={{ color: themeColor }}>[{barStr}]</span>
-                      <span className="text-slate-600">v1.{(idx * 2) % 10}.{(idx * 3) % 9}</span>
+                      <span style={{ color: isDark ? "#475569" : "#94a3b8" }}>v1.{(idx * 2) % 10}.{(idx * 3) % 9}</span>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>
@@ -4140,38 +4861,38 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "projects":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Microservices Running</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Microservices Running</div>
             <div className="grid gap-6 sm:grid-cols-2">
               {data.projects.map((p) => (
-                <div key={p.title} className="bg-slate-900 border border-slate-850 rounded-xl overflow-hidden flex flex-col justify-between group h-64 hover:border-slate-800 transition-colors">
+                <div key={p.title} className={`border rounded-xl overflow-hidden flex flex-col justify-between group transition-all hover:-translate-y-1 ${isDark ? "bg-slate-900 border-slate-850 hover:border-slate-800" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"}`}>
                   {p.imageUrl ? (
-                    <div className="h-32 w-full overflow-hidden border-b border-slate-855">
+                    <div className="h-32 w-full overflow-hidden border-b" style={{ borderColor: isDark ? "#0f172a" : "#e2e8f0" }}>
                       <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     </div>
                   ) : (
-                    <div className="h-32 w-full flex items-center justify-center border-b border-slate-855 bg-slate-950/45">
-                      <Code className="h-8 w-8 text-slate-700" style={{ color: themeColor }} />
+                    <div className="h-32 w-full flex items-center justify-center border-b" style={{ borderColor: isDark ? "#0f172a" : "#e2e8f0", backgroundColor: isDark ? "rgba(2,6,23,0.45)" : "rgba(248,250,252,1)" }}>
+                      <Code className="h-8 w-8" style={{ color: isDark ? "#334155" : "#cbd5e1" }} />
                     </div>
                   )}
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                         <h3 className="font-bold text-sm text-slate-200">{p.title}</h3>
-                         <span className="text-[8px] bg-slate-950 px-2 py-0.5 rounded font-mono border border-slate-800 flex items-center gap-1">
+                         <h3 className="font-bold text-sm" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{p.title}</h3>
+                         <span className="text-[8px] px-2 py-0.5 rounded font-mono border flex items-center gap-1" style={{ borderColor: isDark ? "#1e293b" : "#e2e8f0", backgroundColor: isDark ? "#020617" : "#f8fafc" }}>
                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                            <span style={{ color: themeColor }}>ACTIVE</span>
                          </span>
                       </div>
-                      <p className="text-xs text-slate-450 leading-relaxed line-clamp-2 mb-2">{p.description}</p>
+                      <p className="text-xs leading-relaxed line-clamp-2 mb-2" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{p.description}</p>
                       <div className="flex flex-wrap gap-1">
                         {p.tags.map((tag) => (
-                          <span key={tag} className="text-[8px] text-slate-500 font-mono bg-slate-955 px-1.5 py-0.5 rounded border border-slate-800/60">{tag}</span>
+                          <span key={tag} className="text-[8px] font-mono px-1.5 py-0.5 rounded border" style={{ color: isDark ? "#64748b" : "#94a3b8", borderColor: isDark ? "#1e293b" : "#e2e8f0", backgroundColor: isDark ? "#020617" : "#f8fafc" }}>{tag}</span>
                         ))}
                       </div>
                     </div>
-                    <div className="flex gap-4 text-xs font-mono mt-3 pt-2 border-t border-slate-850" style={{ color: themeColor }}>
+                    <div className="flex gap-4 text-xs font-mono mt-3 pt-2 border-t" style={{ color: themeColor, borderColor: isDark ? "#0f172a" : "#e2e8f0" }}>
                       <a href={p.link} target="_blank" rel="noreferrer" className="hover:underline">/repo</a>
-                      {p.liveLink ? <a href={p.liveLink} target="_blank" rel="noreferrer" className="hover:underline text-white">/demo</a> : null}
+                      {p.liveLink ? <a href={p.liveLink} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: themeColor }}>/demo</a> : null}
                     </div>
                   </div>
                 </div>
@@ -4182,13 +4903,13 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "experience":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Operational History</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Operational History</div>
             <div className="space-y-4">
               {data.experience.map((e) => (
-                <div key={e.role} className="bg-slate-900 border border-slate-855 p-5 rounded-xl space-y-2" style={{ borderLeftColor: themeColor, borderLeftWidth: "3px" }}>
-                  <h3 className="font-bold text-sm text-slate-200">{e.role}</h3>
+                <div key={e.role} className={`border p-5 rounded-xl space-y-2 ${isDark ? "bg-slate-900 border-slate-855" : "bg-white border-slate-200 shadow-sm"}`} style={{ borderLeftColor: themeColor, borderLeftWidth: "3px" }}>
+                  <h3 className="font-bold text-sm" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{e.role}</h3>
                   <p className="text-xs font-semibold" style={{ color: themeColor }}>{e.company} · {e.duration}</p>
-                  <p className="text-xs text-slate-450 leading-relaxed">{e.description}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{e.description}</p>
                 </div>
               ))}
             </div>
@@ -4197,12 +4918,12 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "education":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Academic Logs</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Academic Logs</div>
             <div className="space-y-3">
               {data.education.map((edu) => (
-                <div key={edu.degree} className="bg-slate-900 border border-slate-850 p-4 rounded-xl">
-                  <h3 className="font-semibold text-xs text-slate-200">{edu.degree}</h3>
-                  <p className="text-[10px] text-slate-550 font-mono mt-1">{edu.school} · {edu.year}</p>
+                <div key={edu.degree} className={`border p-4 rounded-xl ${isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200 shadow-sm"}`}>
+                  <h3 className="font-semibold text-xs" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{edu.degree}</h3>
+                  <p className="text-[10px] font-mono mt-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{edu.school} · {edu.year}</p>
                 </div>
               ))}
             </div>
@@ -4211,24 +4932,24 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "certifications":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Authority Credentials</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Authority Credentials</div>
             <div className="grid gap-4 sm:grid-cols-2">
               {data.certifications && data.certifications.length > 0 ? (
                 data.certifications.map((c) => (
-                  <div key={c.name} className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex gap-3 group">
+                  <div key={c.name} className={`border p-4 rounded-xl flex gap-3 group ${isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200 shadow-sm"}`}>
                     {c.imageUrl ? (
-                      <img src={c.imageUrl} alt={c.name} className="h-10 w-10 rounded object-cover shrink-0 border border-slate-800" />
+                      <img src={c.imageUrl} alt={c.name} className="h-10 w-10 rounded object-cover shrink-0 border" style={{ borderColor: isDark ? "#1e293b" : "#e2e8f0" }} />
                     ) : (
                       <Award className="h-5 w-5 shrink-0 mt-0.5" style={{ color: themeColor }} />
                     )}
                     <div>
-                      <h4 className="font-semibold text-xs text-slate-200">{c.name}</h4>
-                      <p className="text-[10px] text-slate-500 mt-1">{c.issuer} · {c.date}</p>
+                      <h4 className="font-semibold text-xs" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{c.name}</h4>
+                      <p className="text-[10px] mt-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{c.issuer} · {c.date}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-500 font-mono">No credentials loaded.</div>
+                <div className="text-xs font-mono" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>No credentials loaded.</div>
               )}
             </div>
           </div>
@@ -4236,17 +4957,17 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "achievements":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-550 font-mono tracking-widest uppercase mb-1">// System Achievements</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// System Achievements</div>
             <div className="grid gap-3 sm:grid-cols-2">
               {data.achievements && data.achievements.length > 0 ? (
                 data.achievements.map((ach, ai) => (
-                  <div key={ai} className="bg-slate-900 border border-slate-850 p-4 rounded-xl flex gap-3 items-start">
+                  <div key={ai} className={`border p-4 rounded-xl flex gap-3 items-start ${isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200 shadow-sm"}`}>
                     <Award className="h-5 w-5 shrink-0 mt-0.5" style={{ color: themeColor }} />
-                    <p className="text-xs text-slate-300 font-mono leading-relaxed">{ach}</p>
+                    <p className="text-xs font-mono leading-relaxed" style={{ color: isDark ? "#cbd5e1" : "#334155" }}>{ach}</p>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-500 font-mono">No achievements logged.</div>
+                <div className="text-xs font-mono" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>No achievements logged.</div>
               )}
             </div>
           </div>
@@ -4254,18 +4975,18 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "languages":
         return (
           <div className="space-y-4">
-            <div className="text-xs text-slate-550 font-mono tracking-widest uppercase mb-1">// Communication Protocol Channels</div>
+            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Communication Protocol Channels</div>
             <div className="flex flex-wrap gap-3">
               {data.languages && data.languages.length > 0 ? (
                 data.languages.map((l) => (
-                  <div key={l.name} className="bg-slate-900 border border-slate-850 rounded-xl px-4 py-2 flex items-center gap-2">
+                  <div key={l.name} className={`border rounded-xl px-4 py-2 flex items-center gap-2 ${isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200 shadow-sm"}`}>
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: themeColor }} />
-                    <span className="text-xs font-bold text-slate-200 font-mono">{l.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">[{l.level}]</span>
+                    <span className="text-xs font-bold font-mono" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{l.name}</span>
+                    <span className="text-[10px] font-mono" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>[{l.level}]</span>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-550 font-mono">No language packages configured.</div>
+                <div className="text-xs font-mono" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>No language packages configured.</div>
               )}
             </div>
           </div>
@@ -4273,35 +4994,43 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
       case "contact":
         return (
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-4 text-xs text-slate-400">
+            <div className="space-y-4 text-xs" style={{ color: isDark ? "#94a3b8" : "#64748b" }}>
               <p>Transmit an API-style message directly. Social links listed below.</p>
               <div className="space-y-2 font-mono">
                 <div>Mail: {data.email || "hello@domain.com"}</div>
                 {data.phone && <div>Phone: {data.phone}</div>}
-                <div>Loc: {data.location || "Ananthapuramu, India"}</div>
+                <div>Loc: {data.location || "Remote"}</div>
               </div>
               <div className="pt-2">
                 <SocialIcons links={data.socialLinks} color={themeColor} />
               </div>
             </div>
             <CommonContactForm 
-              inputStyle="w-full p-2.5 bg-slate-900 border border-slate-855 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-slate-700 font-mono"
-              buttonStyle="w-full py-2.5 text-slate-955 font-bold rounded-lg hover:opacity-90 uppercase tracking-widest text-xs" 
+              inputStyle={`w-full p-2.5 border rounded-lg text-xs focus:outline-none font-mono ${isDark ? "bg-slate-900 border-slate-855 text-slate-200 focus:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-slate-300"}`}
+              buttonStyle="w-full py-2.5 font-bold rounded-lg hover:opacity-90 uppercase tracking-widest text-xs" 
               buttonColor={themeColor}
+              portfolioId={portfolioId}
             />
           </div>
         );
       default:
-        return <div className="text-xs text-slate-550 font-mono">Section unrecognized.</div>;
+        return <div className="text-xs font-mono" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>Section unrecognized.</div>;
     }
   };
 
+  const dashBg = isDark ? "bg-slate-950 text-slate-200" : "bg-slate-50 text-slate-800";
+  const dashSidebar = isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200 shadow-sm";
+  const dashMain = isDark ? "bg-slate-900 border-slate-850" : "bg-white border-slate-200";
+  const dashTab = isDark ? "text-slate-400 hover:bg-slate-955/50 hover:text-slate-200" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800";
+  const dashTabActive = isDark ? "bg-slate-955 border-slate-800" : "bg-primary/10 border-primary/20";
+  const dashMuted = isDark ? "text-slate-500" : "text-slate-400";
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8 flex flex-col md:flex-row gap-6 font-sans">
+    <div className={`min-h-screen p-4 md:p-8 flex flex-col md:flex-row gap-6 font-sans transition-colors duration-300 ${dashBg}`}>
       {/* Sidebar Dashboard Navigation */}
-      <aside className="w-full md:w-60 bg-slate-900 border border-slate-850 rounded-2xl p-6 shrink-0 flex flex-col justify-between h-fit md:h-[85vh]">
+      <aside className={`w-full md:w-60 border rounded-2xl p-6 shrink-0 flex flex-col justify-between h-fit md:h-[85vh] ${dashSidebar}`}>
         <div className="space-y-6">
-          <div className="flex items-center gap-2 border-b border-slate-850 pb-3 mb-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+          <div className="flex items-center gap-2 border-b pb-3 mb-2 text-[10px] font-mono uppercase tracking-widest" style={{ color: isDark ? "#64748b" : "#94a3b8", borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>
             <Activity className="h-4 w-4" style={{ color: themeColor }} />
             <span>Dev Console</span>
           </div>
@@ -4312,8 +5041,8 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
                   activeTab === tab.id
-                    ? "bg-slate-955 border-slate-800"
-                    : "border-transparent text-slate-400 hover:bg-slate-955/50 hover:text-slate-200"
+                    ? dashTabActive
+                    : `border-transparent ${dashTab}`
                 }`}
                 style={activeTab === tab.id ? { color: themeColor } : {}}
               >
@@ -4323,25 +5052,41 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
             ))}
           </div>
         </div>
-        <div className="hidden md:block pt-6 border-t border-slate-850">
-          <div className="text-[10px] text-slate-650 font-mono">
+        <div className="hidden md:block pt-6 border-t" style={{ borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>
+          <div className="text-[10px] font-mono" style={{ color: isDark ? "#475569" : "#94a3b8" }}>
             DB_STATUS: CONNECTED
           </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 bg-slate-900 border border-slate-850 rounded-2xl p-6 md:p-8 shadow-2xl relative min-h-[85vh] flex flex-col justify-between">
+      <main className={`flex-1 border rounded-2xl p-6 md:p-8 shadow-xl relative min-h-[85vh] flex flex-col justify-between ${dashMain}`}>
         <div className="space-y-6 font-sans">
           {/* Header HUD */}
-          <div className="flex items-center justify-between border-b border-slate-850 pb-4">
-            <h1 className="text-sm font-extrabold text-white tracking-widest font-mono uppercase flex items-center gap-2">
+          <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>
+            <h1 className="text-sm font-extrabold tracking-widest font-mono uppercase flex items-center gap-2" style={{ color: isDark ? "#f1f5f9" : "#0f172a" }}>
               <Terminal className="h-4 w-4" style={{ color: themeColor }} />
               <span>{data.name} // {activeTab}</span>
             </h1>
-            <span className="text-[9px] bg-slate-955 px-2 py-0.5 rounded font-mono border border-slate-850" style={{ color: themeColor }}>
-              SESSION: ACTIVE
-            </span>
+            <div className="flex items-center gap-3">
+              {isPreview && onOpenNotifications && (
+                <button
+                  onClick={onOpenNotifications}
+                  className="relative p-1.5 rounded-lg hover:bg-slate-500/10 transition-colors"
+                  title="Open Inbox Messages"
+                >
+                  <Bell className="h-4 w-4" style={{ color: themeColor }} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              <span className="text-[9px] px-2 py-0.5 rounded font-mono border" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0", backgroundColor: isDark ? "#020617" : "#f1f5f9" }}>
+                SESSION: ACTIVE
+              </span>
+            </div>
           </div>
 
           {/* Dynamic Panel Views */}
@@ -4359,9 +5104,9 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
           </AnimatePresence>
         </div>
 
-        <footer className="border-t border-slate-855 pt-6 mt-8 flex items-center justify-between text-xs font-mono">
+        <footer className="border-t pt-6 mt-8 flex items-center justify-between text-xs font-mono" style={{ borderColor: isDark ? "#0f172a" : "#e2e8f0" }}>
           <SocialIcons links={data.socialLinks} color={themeColor} />
-          <span className="text-[10px] text-slate-600">// DASHBOARD END</span>
+          <span className="text-[10px]" style={{ color: isDark ? "#475569" : "#94a3b8" }}>// DASHBOARD END</span>
         </footer>
       </main>
     </div>
