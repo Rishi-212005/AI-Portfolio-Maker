@@ -67,9 +67,7 @@ const Templates = () => {
                 <div
                   className="relative h-56 w-full overflow-hidden"
                   style={{
-                    background: ["elegant-serif", "neobrutalist-bold", "interactive-timeline"].includes(t.id)
-                      ? `linear-gradient(135deg, hsl(0 0% 96%), hsl(0 0% 90%))`
-                      : `linear-gradient(135deg, ${t.color}15, hsl(222 47% 8%))`
+                    background: `linear-gradient(135deg, ${t.color}15, hsl(210 40% 96%))`
                   }}
                 >
                   <TemplateMockup id={t.id} color={t.color} />
