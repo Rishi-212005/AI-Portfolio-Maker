@@ -191,18 +191,20 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
           </div>
         );
 
-      case "retro-terminal":
+      case "retro-terminal": {
+        const hostUser = (data.name || "user").toLowerCase().replace(/\s+/g, "-");
+        const hostPrompt = `visitor@${hostUser}-portfolio:~$`;
         return (
           <div className="bg-black text-emerald-400 font-mono p-8 border border-emerald-950 relative shadow-inner">
             {sectionId === "about" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ cat about.md</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} cat about.md</p>
                 <p className="leading-relaxed text-sm">{data.about}</p>
               </div>
             )}
             {sectionId === "skills" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ list-skills</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} list-skills</p>
                 <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                   {data.skills.map((s) => (
                     <span key={s} className="before:content-['[x]_']">{s}</span>
@@ -212,7 +214,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
             {sectionId === "projects" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ get-projects</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} get-projects</p>
                 <div className="space-y-4">
                   {data.projects.map((p) => (
                     <div key={p.title} className="border border-emerald-900/50 p-3 bg-black/40">
@@ -225,7 +227,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
             {sectionId === "experience" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ get-experience</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} get-experience</p>
                 <div className="space-y-4">
                   {data.experience.map((e) => (
                     <div key={e.role}>
@@ -238,7 +240,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
             {sectionId === "education" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ query-education</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} query-education</p>
                 {data.education.map((edu) => (
                   <p key={edu.degree} className="text-sm">- {edu.degree} ({edu.school}, {edu.year})</p>
                 ))}
@@ -246,7 +248,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
             {sectionId === "certifications" && data.certifications && data.certifications.length > 0 && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ load-certs</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} load-certs</p>
                 {data.certifications.map((c) => (
                   <p key={c.name} className="text-sm">- [CERT] {c.name} ({c.issuer}, {c.date})</p>
                 ))}
@@ -254,7 +256,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
             {sectionId === "contact" && (
               <div>
-                <p className="text-xs text-emerald-600 mb-2">visitor@rishi-portfolio:~$ connect-net</p>
+                <p className="text-xs text-emerald-600 mb-2">{hostPrompt} connect-net</p>
                 <div className="flex gap-4 text-xs font-bold text-emerald-300">
                   {data.socialLinks.map((l) => (
                     <span key={l.platform}>[{l.platform}]</span>
@@ -264,6 +266,7 @@ const PortfolioSection = ({ sectionId, templateId, data }: { sectionId: SectionI
             )}
           </div>
         );
+      }
 
       case "glass-aurora":
         return (
