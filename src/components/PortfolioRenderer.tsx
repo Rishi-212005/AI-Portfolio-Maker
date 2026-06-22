@@ -593,7 +593,7 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
             className={`text-5xl sm:text-7xl font-black tracking-tight leading-none ${isDark ? "text-white" : "text-slate-900"}`}
           >
             {data.name.split(" ").map((word, wi) => (
-              <span key={word} className="block" style={wi === data.name.split(" ").length - 1 ? { color: themeColor } : {}}>
+              <span key={word} className="inline-block mr-4 sm:mr-6" style={wi === data.name.split(" ").length - 1 ? { color: themeColor } : {}}>
                 {word}
               </span>
             ))}
