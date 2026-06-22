@@ -470,6 +470,7 @@ const Dashboard = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isParsing, setIsParsing] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -483,7 +484,12 @@ const Dashboard = () => {
         });
         if (res.ok) {
           const body = await res.json();
-          if (body?.data) setData(body.data as PortfolioData);
+          if (body?.data) {
+            setData(body.data as PortfolioData);
+            if (body.data.name && body.data.name !== defaultPortfolioData.name) {
+              setShowManualForm(true);
+            }
+          }
         }
       } catch { /* fallback */ } finally { setIsLoading(false); }
     })();
@@ -752,493 +758,530 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* divider */}
-          <div className="cp-or-divider">
-            <div className="cp-or-line" />
-            <span className="cp-or-text">or fill in manually</span>
-            <div className="cp-or-line" />
-          </div>
-
-          {/* ── STEPPER ── */}
-          <div className="cp-stepper">
-            {stepLabels.map((s, i) => (
-              <div
-                key={s.label}
-                className={`cp-step${i === step ? " active" : ""}${i < step ? " done" : ""}`}
-                onClick={() => setStep(i)}
-              >
-                <div className="cp-step-icon">
-                  {i < step ? <Check className="h-4.5 w-4.5" /> : <s.icon className="h-4.5 w-4.5" />}
-                </div>
-                <span className="cp-step-label">{s.label}</span>
-                <div className="cp-step-underline" />
+          {/* divider & manual option */}
+          {!showManualForm && (
+            <div className="flex flex-col items-center mt-6">
+              <div className="cp-or-divider w-full">
+                <div className="cp-or-line" />
+                <span className="cp-or-text">or</span>
+                <div className="cp-or-line" />
               </div>
-            ))}
-          </div>
-
-          {/* ── FORM CARD ── */}
-          <div className="cp-form-card">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                {/* STEP 0: Basic Info */}
-                {step === 0 && (
-                  <>
-                    <SH icon={User} label="Basic Info" />
-
-                    {/* Photo + Name */}
-                    <div className="cp-profile-row">
-                      <ImgUpload
-                        value={data.photo || ""}
-                        onChange={v => setData(p => ({ ...p, photo: v }))}
-                        label="Upload Photo"
-                        circle
-                      />
-                      <div className="cp-name-col">
-                        <div className="cp-field" style={{ marginBottom: 0 }}>
-                          <input
-                            className="cp-input no-icon"
-                            placeholder="Full Name"
-                            value={data.name}
-                            onChange={e => setData(p => ({ ...p, name: e.target.value }))}
-                          />
-                        </div>
-                        <div className="cp-field" style={{ marginBottom: 0 }}>
-                          <input
-                            className="cp-input no-icon"
-                            placeholder="Professional Title"
-                            value={data.title}
-                            onChange={e => setData(p => ({ ...p, title: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bio */}
-                    <div className="cp-field">
-                      <label className="cp-label">Bio / Summary</label>
-                      <textarea
-                        className="cp-textarea"
-                        placeholder="Write a short professional summary…"
-                        value={data.about}
-                        onChange={e => setData(p => ({ ...p, about: e.target.value }))}
-                      />
-                    </div>
-
-                    {/* Contact grid */}
-                    <div className="cp-grid-2">
-                      <div className="cp-field">
-                        <label className="cp-label">Email</label>
-                        <div className="cp-input-wrap">
-                          <span className="cp-input-icon"><Mail /></span>
-                          <input
-                            className="cp-input"
-                            type="email"
-                            placeholder="you@example.com"
-                            value={data.email || ""}
-                            onChange={e => setData(p => ({ ...p, email: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="cp-field">
-                        <label className="cp-label">Phone</label>
-                        <div className="cp-input-wrap">
-                          <span className="cp-input-icon"><Phone /></span>
-                          <input
-                            className="cp-input"
-                            type="tel"
-                            placeholder="+91 00000 00000"
-                            value={data.phone || ""}
-                            onChange={e => setData(p => ({ ...p, phone: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="cp-field">
-                        <label className="cp-label">Location</label>
-                        <div className="cp-input-wrap">
-                          <span className="cp-input-icon"><MapPin /></span>
-                          <input
-                            className="cp-input"
-                            placeholder="City, State, Country"
-                            value={data.location || ""}
-                            onChange={e => setData(p => ({ ...p, location: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="cp-field">
-                        <label className="cp-label">Website / Portfolio</label>
-                        <div className="cp-input-wrap">
-                          <span className="cp-input-icon"><Globe /></span>
-                          <input
-                            className="cp-input"
-                            placeholder="https://yoursite.com"
-                            value={data.website || ""}
-                            onChange={e => setData(p => ({ ...p, website: e.target.value }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Languages */}
-                    <div className="cp-lang-header">
-                      <span className="cp-lang-label"><Languages /> Languages</span>
-                      <button className="cp-add-btn" onClick={addLang}><Plus className="h-4 w-4" /> Add</button>
-                    </div>
-                    {(data.languages || []).map((lang, i) => (
-                      <div key={i} className="cp-lang-row">
-                        <input
-                          className="cp-input no-icon"
-                          placeholder="Language"
-                          value={lang.name}
-                          onChange={e => updateLang(i, "name", e.target.value)}
-                        />
-                        <select
-                          className="cp-select"
-                          value={lang.level}
-                          onChange={e => updateLang(i, "level", e.target.value)}
-                        >
-                          {["Native", "Fluent", "Professional", "Conversational", "Basic"].map(lvl => (
-                            <option key={lvl}>{lvl}</option>
-                          ))}
-                        </select>
-                        <button className="cp-del-btn" onClick={() => removeLang(i)} aria-label="Remove language">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {/* STEP 1: Experience & Education */}
-                {step === 1 && (
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <SH icon={Briefcase} label="Work Experience" />
-                        <button className="cp-add-btn" onClick={addExp}><Plus className="h-4 w-4" /> Add Role</button>
-                      </div>
-                      <div className="space-y-4">
-                        {data.experience.map((exp, i) => (
-                          <div key={i} className="cp-inner-card">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Experience {i + 1}</span>
-                              {data.experience.length > 1 && (
-                                <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeExp(i)}><Trash2 className="h-4 w-4" /></button>
-                              )}
-                            </div>
-                            <div className="cp-grid-3 mb-3">
-                              <div className="cp-field">
-                                <label className="cp-label">Job Title / Role *</label>
-                                <input className="cp-input no-icon" value={exp.role} onChange={e => updateExp(i, "role", e.target.value)} placeholder="Job Title" />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Company Name *</label>
-                                <input className="cp-input no-icon" value={exp.company} onChange={e => updateExp(i, "company", e.target.value)} placeholder="Company" />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Duration *</label>
-                                <input className="cp-input no-icon" value={exp.duration} onChange={e => updateExp(i, "duration", e.target.value)} placeholder="e.g. Jan 2024 – Now" />
-                              </div>
-                            </div>
-                            <div className="cp-field">
-                              <label className="cp-label">Description</label>
-                              <textarea className="cp-textarea" value={exp.description} onChange={e => updateExp(i, "description", e.target.value)} placeholder="Describe your responsibilities, achievements, and impact…" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <SH icon={GraduationCap} label="Education" />
-                        <button className="cp-add-btn" onClick={addEdu}><Plus className="h-4 w-4" /> Add Education</button>
-                      </div>
-                      <div className="space-y-4">
-                        {data.education.map((edu, i) => (
-                          <div key={i} className="cp-inner-card">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Education {i + 1}</span>
-                              {data.education.length > 1 && (
-                                <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeEdu(i)}><Trash2 className="h-4 w-4" /></button>
-                              )}
-                            </div>
-                            <div className="cp-grid-3">
-                              <div className="cp-field">
-                                <label className="cp-label">Degree / Course *</label>
-                                <input className="cp-input no-icon" value={edu.degree} onChange={e => updateEdu(i, "degree", e.target.value)} placeholder="Degree" />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Institution *</label>
-                                <input className="cp-input no-icon" value={edu.school} onChange={e => updateEdu(i, "school", e.target.value)} placeholder="Institution" />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Year *</label>
-                                <input className="cp-input no-icon" value={edu.year} onChange={e => updateEdu(i, "year", e.target.value)} placeholder="e.g. 2021 – 2025" />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 2: Skills & Projects */}
-                {step === 2 && (
-                  <div className="space-y-6">
-                    <div>
-                      <SH icon={Code} label="Skills" />
-                      <div className="cp-tags-input-wrap">
-                        <input
-                          value={skillInput}
-                          onChange={e => setSkillInput(e.target.value)}
-                          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSkill())}
-                          placeholder="Add a skill and press Enter…"
-                          className="cp-input no-icon"
-                        />
-                        <button onClick={addSkill} className="cp-btn-next" style={{ padding: "0 1.25rem", height: "42px", flexShrink: 0 }}><Plus className="h-5 w-5" /></button>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mb-3">💡 Add skills one by one. They'll be auto-categorized in your portfolio.</p>
-                      <div className="cp-tags-list">
-                        {data.skills.map((skill, i) => (
-                          <span key={i} className="cp-tag-item">
-                            {skill}
-                            <button onClick={() => removeSkill(i)} aria-label="Remove skill">✕</button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <SH icon={Trophy} label="Achievements &amp; Awards" />
-                      <div className="cp-tags-input-wrap">
-                        <input
-                          value={achievementInput}
-                          onChange={e => setAchievementInput(e.target.value)}
-                          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAchievement())}
-                          placeholder="e.g. 🏆 Won Hackathon 2024 – 1st place…"
-                          className="cp-input no-icon"
-                        />
-                        <button onClick={addAchievement} className="cp-btn-next" style={{ padding: "0 1.25rem", height: "42px", flexShrink: 0 }}><Plus className="h-5 w-5" /></button>
-                      </div>
-                      <div className="space-y-2 mt-3">
-                        {(data.achievements || []).map((ach, i) => (
-                          <div key={i} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] border border-[#E4DFD5] px-3 py-2 text-sm">
-                            <span className="flex-1 text-[#374151]">{ach}</span>
-                            <button onClick={() => removeAchievement(i)} className="text-[#CBD5E1] hover:text-[#EF4444] bg-transparent border-0 cursor-pointer text-sm font-semibold">✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <SH icon={Sparkles} label="Projects" />
-                        <button className="cp-add-btn" onClick={addProject}><Plus className="h-4 w-4" /> Add Project</button>
-                      </div>
-                      <div className="space-y-5">
-                        {data.projects.map((proj, i) => (
-                          <div key={i} className="cp-inner-card">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Project {i + 1}</span>
-                              {data.projects.length > 1 && (
-                                <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeProject(i)}><Trash2 className="h-4 w-4" /></button>
-                              )}
-                            </div>
-                            {/* Project preview image */}
-                            <div className="mb-3">
-                              <ImgUpload
-                                value={proj.imageUrl || ""}
-                                onChange={v => updateProject(i, "imageUrl", v)}
-                                label="Upload project screenshot / preview image"
-                              />
-                            </div>
-                            <div className="cp-grid-2">
-                              <div className="cp-field">
-                                <label className="cp-label">Project Title *</label>
-                                <input className="cp-input no-icon" value={proj.title} onChange={e => updateProject(i, "title", e.target.value)} placeholder="Project Title" />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">GitHub / Source URL</label>
-                                <input className="cp-input no-icon" value={proj.link} onChange={e => updateProject(i, "link", e.target.value)} placeholder="https://github.com/..." />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Live Demo URL</label>
-                                <input className="cp-input no-icon" value={proj.liveLink || ""} onChange={e => updateProject(i, "liveLink", e.target.value)} placeholder="https://..." />
-                              </div>
-                              <div className="cp-field">
-                                <label className="cp-label">Tags (comma-separated)</label>
-                                <input
-                                  className="cp-input no-icon"
-                                  value={Array.isArray(proj.tags) ? proj.tags.join(", ") : (proj.tags as string)}
-                                  onChange={e => {
-                                    const u = [...data.projects];
-                                    u[i] = { ...u[i], tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) };
-                                    setData(p => ({ ...p, projects: u }));
-                                  }}
-                                  placeholder="React, Node.js, MongoDB…"
-                                />
-                              </div>
-                            </div>
-                            <div className="cp-field mt-3">
-                              <label className="cp-label">Description</label>
-                              <textarea className="cp-textarea" value={proj.description} onChange={e => updateProject(i, "description", e.target.value)} placeholder="Describe the project, your role, tech used, and impact…" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 3: Certifications */}
-                {step === 3 && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <SH icon={Award} label="Certifications" />
-                      <button className="cp-add-btn" onClick={addCert}><Plus className="h-4 w-4" /> Add Certificate</button>
-                    </div>
-                    <div className="space-y-5">
-                      {(data.certifications || []).map((cert, i) => (
-                        <div key={i} className="cp-inner-card">
-                          <div className="flex justify-between items-center mb-3">
-                            <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Certificate {i + 1}</span>
-                            <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeCert(i)}><Trash2 className="h-4 w-4" /></button>
-                          </div>
-                          {/* Certificate image */}
-                          <div className="mb-3">
-                            <ImgUpload
-                              value={cert.imageUrl || ""}
-                              onChange={v => updateCert(i, "imageUrl", v)}
-                              label="Upload certificate image / badge"
-                            />
-                          </div>
-                          <div className="cp-grid-2">
-                            <div className="cp-field">
-                              <label className="cp-label">Certificate Name *</label>
-                              <input className="cp-input no-icon" value={cert.name} onChange={e => updateCert(i, "name", e.target.value)} placeholder="Certificate Name" />
-                            </div>
-                            <div className="cp-field">
-                              <label className="cp-label">Issuing Organization *</label>
-                              <input className="cp-input no-icon" value={cert.issuer} onChange={e => updateCert(i, "issuer", e.target.value)} placeholder="e.g. Google, AWS, Coursera" />
-                            </div>
-                            <div className="cp-field">
-                              <label className="cp-label">Date</label>
-                              <input className="cp-input no-icon" value={cert.date} onChange={e => updateCert(i, "date", e.target.value)} placeholder="e.g. August 2024" />
-                            </div>
-                            <div className="cp-field">
-                              <label className="cp-label">Credential / Verify URL</label>
-                              <input className="cp-input no-icon" value={cert.credentialUrl || ""} onChange={e => updateCert(i, "credentialUrl", e.target.value)} placeholder="https://..." />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {(data.certifications || []).length === 0 && (
-                        <div className="rounded-xl border border-dashed border-border/40 py-10 text-center text-muted-foreground text-sm">
-                          No certifications yet. Click "Add Certificate" to add one.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* STEP 4: Links & Finish */}
-                {step === 4 && (
-                  <div className="space-y-6">
-                    <SH icon={LinkIcon} label="Social Links" />
-                    <div className="space-y-3">
-                      {data.socialLinks.map((link, i) => (
-                        <div key={i} className="cp-lang-row">
-                          <select
-                            value={link.platform}
-                            onChange={e => { const u = [...data.socialLinks]; u[i] = { ...link, platform: e.target.value }; setData(p => ({ ...p, socialLinks: u })); }}
-                            className="cp-select"
-                          >
-                            {["GitHub", "LinkedIn", "Twitter", "Instagram", "YouTube", "Portfolio", "Other"].map(opt => <option key={opt}>{opt}</option>)}
-                          </select>
-                          <input
-                            value={link.url}
-                            onChange={e => { const u = [...data.socialLinks]; u[i] = { ...link, url: e.target.value }; setData(p => ({ ...p, socialLinks: u })); }}
-                            placeholder="https://..."
-                            className="cp-input no-icon"
-                          />
-                          {data.socialLinks.length > 1 ? (
-                            <button className="cp-del-btn" onClick={() => setData(p => ({ ...p, socialLinks: p.socialLinks.filter((_, j) => j !== i) }))}>
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          ) : (
-                            <div />
-                          )}
-                        </div>
-                      ))}
-                      <button className="cp-add-btn" style={{ marginTop: "8px" }} onClick={() => setData(p => ({ ...p, socialLinks: [...p.socialLinks, { platform: "GitHub", url: "" }] }))}>
-                        <Plus className="h-4 w-4" /> Add Link
-                      </button>
-                    </div>
-
-                    {/* Preview URL */}
-                    <div className="cp-inner-card mt-6" style={{ background: "#FAF8F5" }}>
-                      <p className="text-xs text-muted-foreground mb-1">Your portfolio URL</p>
-                      <div className="flex items-center gap-2 font-mono text-sm">
-                        <Globe className="h-4 w-4 text-[#4F46E5] shrink-0" />
-                        <span className="text-[#374151] font-semibold">{data.name.toLowerCase().replace(/\s+/g, "")}.portgen.ai</span>
-                      </div>
-                    </div>
-
-                    {/* Summary */}
-                    <div className="cp-inner-card mt-4" style={{ borderColor: "#4F46E5", background: "#FAF8F5" }}>
-                      <p className="text-sm font-semibold text-[#4F46E5] mb-2 flex items-center gap-1.5">
-                        <CheckCircle2 className="h-4 w-4" /> Portfolio Summary
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 text-xs text-[#64748B]">
-                        <span>Name: <strong className="text-[#1E293B] font-medium">{data.name}</strong></span>
-                        <span>Skills: <strong className="text-[#1E293B] font-medium">{data.skills.length}</strong></span>
-                        <span>Projects: <strong className="text-[#1E293B] font-medium">{data.projects.length}</strong></span>
-                        <span>Experience: <strong className="text-[#1E293B] font-medium">{data.experience.length}</strong></span>
-                        <span>Certs: <strong className="text-[#1E293B] font-medium">{(data.certifications || []).length}</strong></span>
-                        <span>Achievements: <strong className="text-[#1E293B] font-medium">{(data.achievements || []).length}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* ── ACTIONS ── */}
-            <div className="cp-actions">
               <button
-                className="cp-btn-back"
-                onClick={() => setStep(Math.max(0, step - 1))}
-                disabled={step === 0}
+                onClick={() => setShowManualForm(true)}
+                className="cp-btn-next"
                 style={{
-                  opacity: step === 0 ? 0.4 : 1,
-                  cursor: step === 0 ? "not-allowed" : "pointer"
+                  background: "#fff",
+                  color: "#4F46E5",
+                  border: "1.5px solid #4F46E5",
+                  padding: "0.75rem 2rem",
+                  fontSize: "0.9rem",
+                  fontWeight: 600,
+                  boxShadow: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#FAF8F5";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(79, 70, 229, 0.08)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "#fff";
+                  e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                <ArrowLeft className="h-4 w-4" /> Back
+                Fill manually (Preferred) <ArrowRight className="h-4 w-4" />
               </button>
-              {step < stepLabels.length - 1 ? (
-                <button className="cp-btn-next" onClick={() => setStep(step + 1)}>
-                  Next <ArrowRight className="h-4 w-4" />
-                </button>
-              ) : (
-                <button
-                  className="cp-btn-next"
-                  onClick={async () => { await savePortfolio(); navigate("/templates"); }}
-                  disabled={isSaving}
-                  style={{ gap: "8px" }}
-                >
-                  {isSaving ? "Saving…" : "Generate Portfolio"} <Sparkles className="h-4 w-4" />
-                </button>
-              )}
             </div>
-          </div>
+          )}
+
+          {showManualForm && (
+            <>
+              {/* ── STEPPER ── */}
+              <div className="cp-stepper">
+                {stepLabels.map((s, i) => (
+                  <div
+                    key={s.label}
+                    className={`cp-step${i === step ? " active" : ""}${i < step ? " done" : ""}`}
+                    onClick={() => setStep(i)}
+                  >
+                    <div className="cp-step-icon">
+                      {i < step ? <Check className="h-4.5 w-4.5" /> : <s.icon className="h-4.5 w-4.5" />}
+                    </div>
+                    <span className="cp-step-label">{s.label}</span>
+                    <div className="cp-step-underline" />
+                  </div>
+                ))}
+              </div>
+
+              {/* ── FORM CARD ── */}
+              <div className="cp-form-card">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={step}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {/* STEP 0: Basic Info */}
+                    {step === 0 && (
+                      <>
+                        <SH icon={User} label="Basic Info" />
+
+                        {/* Photo + Name */}
+                        <div className="cp-profile-row">
+                          <ImgUpload
+                            value={data.photo || ""}
+                            onChange={v => setData(p => ({ ...p, photo: v }))}
+                            label="Upload Photo"
+                            circle
+                          />
+                          <div className="cp-name-col">
+                            <div className="cp-field" style={{ marginBottom: 0 }}>
+                              <input
+                                className="cp-input no-icon"
+                                placeholder="Full Name"
+                                value={data.name}
+                                onChange={e => setData(p => ({ ...p, name: e.target.value }))}
+                              />
+                            </div>
+                            <div className="cp-field" style={{ marginBottom: 0 }}>
+                              <input
+                                className="cp-input no-icon"
+                                placeholder="Professional Title"
+                                value={data.title}
+                                onChange={e => setData(p => ({ ...p, title: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bio */}
+                        <div className="cp-field">
+                          <label className="cp-label">Bio / Summary</label>
+                          <textarea
+                            className="cp-textarea"
+                            placeholder="Write a short professional summary…"
+                            value={data.about}
+                            onChange={e => setData(p => ({ ...p, about: e.target.value }))}
+                          />
+                        </div>
+
+                        {/* Contact grid */}
+                        <div className="cp-grid-2">
+                          <div className="cp-field">
+                            <label className="cp-label">Email</label>
+                            <div className="cp-input-wrap">
+                              <span className="cp-input-icon"><Mail /></span>
+                              <input
+                                className="cp-input"
+                                type="email"
+                                placeholder="you@example.com"
+                                value={data.email || ""}
+                                onChange={e => setData(p => ({ ...p, email: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="cp-field">
+                            <label className="cp-label">Phone</label>
+                            <div className="cp-input-wrap">
+                              <span className="cp-input-icon"><Phone /></span>
+                              <input
+                                className="cp-input"
+                                type="tel"
+                                placeholder="+91 00000 00000"
+                                value={data.phone || ""}
+                                onChange={e => setData(p => ({ ...p, phone: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="cp-field">
+                            <label className="cp-label">Location</label>
+                            <div className="cp-input-wrap">
+                              <span className="cp-input-icon"><MapPin /></span>
+                              <input
+                                className="cp-input"
+                                placeholder="City, State, Country"
+                                value={data.location || ""}
+                                onChange={e => setData(p => ({ ...p, location: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="cp-field">
+                            <label className="cp-label">Website / Portfolio</label>
+                            <div className="cp-input-wrap">
+                              <span className="cp-input-icon"><Globe /></span>
+                              <input
+                                className="cp-input"
+                                placeholder="https://yoursite.com"
+                                value={data.website || ""}
+                                onChange={e => setData(p => ({ ...p, website: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Languages */}
+                        <div className="cp-lang-header">
+                          <span className="cp-lang-label"><Languages /> Languages</span>
+                          <button className="cp-add-btn" onClick={addLang}><Plus className="h-4 w-4" /> Add</button>
+                        </div>
+                        {(data.languages || []).map((lang, i) => (
+                          <div key={i} className="cp-lang-row">
+                            <input
+                              className="cp-input no-icon"
+                              placeholder="Language"
+                              value={lang.name}
+                              onChange={e => updateLang(i, "name", e.target.value)}
+                            />
+                            <select
+                              className="cp-select"
+                              value={lang.level}
+                              onChange={e => updateLang(i, "level", e.target.value)}
+                            >
+                              {["Native", "Fluent", "Professional", "Conversational", "Basic"].map(lvl => (
+                                <option key={lvl}>{lvl}</option>
+                              ))}
+                            </select>
+                            <button className="cp-del-btn" onClick={() => removeLang(i)} aria-label="Remove language">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* STEP 1: Experience & Education */}
+                    {step === 1 && (
+                      <div className="space-y-6">
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <SH icon={Briefcase} label="Work Experience" />
+                            <button className="cp-add-btn" onClick={addExp}><Plus className="h-4 w-4" /> Add Role</button>
+                          </div>
+                          <div className="space-y-4">
+                            {data.experience.map((exp, i) => (
+                              <div key={i} className="cp-inner-card">
+                                <div className="flex justify-between items-center mb-3">
+                                  <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Experience {i + 1}</span>
+                                  {data.experience.length > 1 && (
+                                    <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeExp(i)}><Trash2 className="h-4 w-4" /></button>
+                                  )}
+                                </div>
+                                <div className="cp-grid-3 mb-3">
+                                  <div className="cp-field">
+                                    <label className="cp-label">Job Title / Role *</label>
+                                    <input className="cp-input no-icon" value={exp.role} onChange={e => updateExp(i, "role", e.target.value)} placeholder="Job Title" />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Company Name *</label>
+                                    <input className="cp-input no-icon" value={exp.company} onChange={e => updateExp(i, "company", e.target.value)} placeholder="Company" />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Duration *</label>
+                                    <input className="cp-input no-icon" value={exp.duration} onChange={e => updateExp(i, "duration", e.target.value)} placeholder="e.g. Jan 2024 – Now" />
+                                  </div>
+                                </div>
+                                <div className="cp-field">
+                                  <label className="cp-label">Description</label>
+                                  <textarea className="cp-textarea" value={exp.description} onChange={e => updateExp(i, "description", e.target.value)} placeholder="Describe your responsibilities, achievements, and impact…" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <SH icon={GraduationCap} label="Education" />
+                            <button className="cp-add-btn" onClick={addEdu}><Plus className="h-4 w-4" /> Add Education</button>
+                          </div>
+                          <div className="space-y-4">
+                            {data.education.map((edu, i) => (
+                              <div key={i} className="cp-inner-card">
+                                <div className="flex justify-between items-center mb-3">
+                                  <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Education {i + 1}</span>
+                                  {data.education.length > 1 && (
+                                    <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeEdu(i)}><Trash2 className="h-4 w-4" /></button>
+                                  )}
+                                </div>
+                                <div className="cp-grid-3">
+                                  <div className="cp-field">
+                                    <label className="cp-label">Degree / Course *</label>
+                                    <input className="cp-input no-icon" value={edu.degree} onChange={e => updateEdu(i, "degree", e.target.value)} placeholder="Degree" />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Institution *</label>
+                                    <input className="cp-input no-icon" value={edu.school} onChange={e => updateEdu(i, "school", e.target.value)} placeholder="Institution" />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Year *</label>
+                                    <input className="cp-input no-icon" value={edu.year} onChange={e => updateEdu(i, "year", e.target.value)} placeholder="e.g. 2021 – 2025" />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* STEP 2: Skills & Projects */}
+                    {step === 2 && (
+                      <div className="space-y-6">
+                        <div>
+                          <SH icon={Code} label="Skills" />
+                          <div className="cp-tags-input-wrap">
+                            <input
+                              value={skillInput}
+                              onChange={e => setSkillInput(e.target.value)}
+                              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSkill())}
+                              placeholder="Add a skill and press Enter…"
+                              className="cp-input no-icon"
+                            />
+                            <button onClick={addSkill} className="cp-btn-next" style={{ padding: "0 1.25rem", height: "42px", flexShrink: 0 }}><Plus className="h-5 w-5" /></button>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mb-3">💡 Add skills one by one. They'll be auto-categorized in your portfolio.</p>
+                          <div className="cp-tags-list">
+                            {data.skills.map((skill, i) => (
+                              <span key={i} className="cp-tag-item">
+                                {skill}
+                                <button onClick={() => removeSkill(i)} aria-label="Remove skill">✕</button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <SH icon={Trophy} label="Achievements &amp; Awards" />
+                          <div className="cp-tags-input-wrap">
+                            <input
+                              value={achievementInput}
+                              onChange={e => setAchievementInput(e.target.value)}
+                              onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addAchievement())}
+                              placeholder="e.g. 🏆 Won Hackathon 2024 – 1st place…"
+                              className="cp-input no-icon"
+                            />
+                            <button onClick={addAchievement} className="cp-btn-next" style={{ padding: "0 1.25rem", height: "42px", flexShrink: 0 }}><Plus className="h-5 w-5" /></button>
+                          </div>
+                          <div className="space-y-2 mt-3">
+                            {(data.achievements || []).map((ach, i) => (
+                              <div key={i} className="flex items-center gap-2 rounded-lg bg-[#FAF8F5] border border-[#E4DFD5] px-3 py-2 text-sm">
+                                <span className="flex-1 text-[#374151]">{ach}</span>
+                                <button onClick={() => removeAchievement(i)} className="text-[#CBD5E1] hover:text-[#EF4444] bg-transparent border-0 cursor-pointer text-sm font-semibold">✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <SH icon={Sparkles} label="Projects" />
+                            <button className="cp-add-btn" onClick={addProject}><Plus className="h-4 w-4" /> Add Project</button>
+                          </div>
+                          <div className="space-y-5">
+                            {data.projects.map((proj, i) => (
+                              <div key={i} className="cp-inner-card">
+                                <div className="flex justify-between items-center mb-3">
+                                  <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Project {i + 1}</span>
+                                  {data.projects.length > 1 && (
+                                    <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeProject(i)}><Trash2 className="h-4 w-4" /></button>
+                                  )}
+                                </div>
+                                {/* Project preview image */}
+                                <div className="mb-3">
+                                  <ImgUpload
+                                    value={proj.imageUrl || ""}
+                                    onChange={v => updateProject(i, "imageUrl", v)}
+                                    label="Upload project screenshot / preview image"
+                                  />
+                                </div>
+                                <div className="cp-grid-2">
+                                  <div className="cp-field">
+                                    <label className="cp-label">Project Title *</label>
+                                    <input className="cp-input no-icon" value={proj.title} onChange={e => updateProject(i, "title", e.target.value)} placeholder="Project Title" />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">GitHub / Source URL</label>
+                                    <input className="cp-input no-icon" value={proj.link} onChange={e => updateProject(i, "link", e.target.value)} placeholder="https://github.com/..." />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Live Demo URL</label>
+                                    <input className="cp-input no-icon" value={proj.liveLink || ""} onChange={e => updateProject(i, "liveLink", e.target.value)} placeholder="https://..." />
+                                  </div>
+                                  <div className="cp-field">
+                                    <label className="cp-label">Tags (comma-separated)</label>
+                                    <input
+                                      className="cp-input no-icon"
+                                      value={Array.isArray(proj.tags) ? proj.tags.join(", ") : (proj.tags as string)}
+                                      onChange={e => {
+                                        const u = [...data.projects];
+                                        u[i] = { ...u[i], tags: e.target.value.split(",").map(t => t.trim()).filter(Boolean) };
+                                        setData(p => ({ ...p, projects: u }));
+                                      }}
+                                      placeholder="React, Node.js, MongoDB…"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="cp-field mt-3">
+                                  <label className="cp-label">Description</label>
+                                  <textarea className="cp-textarea" value={proj.description} onChange={e => updateProject(i, "description", e.target.value)} placeholder="Describe the project, your role, tech used, and impact…" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* STEP 3: Certifications */}
+                    {step === 3 && (
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <SH icon={Award} label="Certifications" />
+                          <button className="cp-add-btn" onClick={addCert}><Plus className="h-4 w-4" /> Add Certificate</button>
+                        </div>
+                        <div className="space-y-5">
+                          {(data.certifications || []).map((cert, i) => (
+                            <div key={i} className="cp-inner-card">
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-xs font-semibold text-[#8B7E66] uppercase tracking-wider">Certificate {i + 1}</span>
+                                <button className="cp-del-btn" style={{ width: "30px", height: "30px" }} onClick={() => removeCert(i)}><Trash2 className="h-4 w-4" /></button>
+                              </div>
+                              {/* Certificate image */}
+                              <div className="mb-3">
+                                <ImgUpload
+                                  value={cert.imageUrl || ""}
+                                  onChange={v => updateCert(i, "imageUrl", v)}
+                                  label="Upload certificate image / badge"
+                                />
+                              </div>
+                              <div className="cp-grid-2">
+                                <div className="cp-field">
+                                  <label className="cp-label">Certificate Name *</label>
+                                  <input className="cp-input no-icon" value={cert.name} onChange={e => updateCert(i, "name", e.target.value)} placeholder="Certificate Name" />
+                                </div>
+                                <div className="cp-field">
+                                  <label className="cp-label">Issuing Organization *</label>
+                                  <input className="cp-input no-icon" value={cert.issuer} onChange={e => updateCert(i, "issuer", e.target.value)} placeholder="e.g. Google, AWS, Coursera" />
+                                </div>
+                                <div className="cp-field">
+                                  <label className="cp-label">Date</label>
+                                  <input className="cp-input no-icon" value={cert.date} onChange={e => updateCert(i, "date", e.target.value)} placeholder="e.g. August 2024" />
+                                </div>
+                                <div className="cp-field">
+                                  <label className="cp-label">Credential / Verify URL</label>
+                                  <input className="cp-input no-icon" value={cert.credentialUrl || ""} onChange={e => updateCert(i, "credentialUrl", e.target.value)} placeholder="https://..." />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {(data.certifications || []).length === 0 && (
+                            <div className="rounded-xl border border-dashed border-border/40 py-10 text-center text-muted-foreground text-sm">
+                              No certifications yet. Click "Add Certificate" to add one.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* STEP 4: Links & Finish */}
+                    {step === 4 && (
+                      <div className="space-y-6">
+                        <SH icon={LinkIcon} label="Social Links" />
+                        <div className="space-y-3">
+                          {data.socialLinks.map((link, i) => (
+                            <div key={i} className="cp-lang-row">
+                              <select
+                                value={link.platform}
+                                onChange={e => { const u = [...data.socialLinks]; u[i] = { ...link, platform: e.target.value }; setData(p => ({ ...p, socialLinks: u })); }}
+                                className="cp-select"
+                              >
+                                {["GitHub", "LinkedIn", "Twitter", "Instagram", "YouTube", "Portfolio", "Other"].map(opt => <option key={opt}>{opt}</option>)}
+                              </select>
+                              <input
+                                value={link.url}
+                                onChange={e => { const u = [...data.socialLinks]; u[i] = { ...link, url: e.target.value }; setData(p => ({ ...p, socialLinks: u })); }}
+                                placeholder="https://..."
+                                className="cp-input no-icon"
+                              />
+                              {data.socialLinks.length > 1 ? (
+                                <button className="cp-del-btn" onClick={() => setData(p => ({ ...p, socialLinks: p.socialLinks.filter((_, j) => j !== i) }))}>
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <div />
+                              )}
+                            </div>
+                          ))}
+                          <button className="cp-add-btn" style={{ marginTop: "8px" }} onClick={() => setData(p => ({ ...p, socialLinks: [...p.socialLinks, { platform: "GitHub", url: "" }] }))}>
+                            <Plus className="h-4 w-4" /> Add Link
+                          </button>
+                        </div>
+
+                        {/* Preview URL */}
+                        <div className="cp-inner-card mt-6" style={{ background: "#FAF8F5" }}>
+                          <p className="text-xs text-muted-foreground mb-1">Your portfolio URL</p>
+                          <div className="flex items-center gap-2 font-mono text-sm">
+                            <Globe className="h-4 w-4 text-[#4F46E5] shrink-0" />
+                            <span className="text-[#374151] font-semibold">{data.name.toLowerCase().replace(/\s+/g, "")}.portgen.ai</span>
+                          </div>
+                        </div>
+
+                        {/* Summary */}
+                        <div className="cp-inner-card mt-4" style={{ borderColor: "#4F46E5", background: "#FAF8F5" }}>
+                          <p className="text-sm font-semibold text-[#4F46E5] mb-2 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" /> Portfolio Summary
+                          </p>
+                          <div className="grid grid-cols-2 gap-3 text-xs text-[#64748B]">
+                            <span>Name: <strong className="text-[#1E293B] font-medium">{data.name}</strong></span>
+                            <span>Skills: <strong className="text-[#1E293B] font-medium">{data.skills.length}</strong></span>
+                            <span>Projects: <strong className="text-[#1E293B] font-medium">{data.projects.length}</strong></span>
+                            <span>Experience: <strong className="text-[#1E293B] font-medium">{data.experience.length}</strong></span>
+                            <span>Certs: <strong className="text-[#1E293B] font-medium">{(data.certifications || []).length}</strong></span>
+                            <span>Achievements: <strong className="text-[#1E293B] font-medium">{(data.achievements || []).length}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* ── ACTIONS ── */}
+                <div className="cp-actions">
+                  <button
+                    className="cp-btn-back"
+                    onClick={() => setStep(Math.max(0, step - 1))}
+                    disabled={step === 0}
+                    style={{
+                      opacity: step === 0 ? 0.4 : 1,
+                      cursor: step === 0 ? "not-allowed" : "pointer"
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Back
+                  </button>
+                  {step < stepLabels.length - 1 ? (
+                    <button className="cp-btn-next" onClick={() => setStep(step + 1)}>
+                      Next <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      className="cp-btn-next"
+                      onClick={async () => { await savePortfolio(); navigate("/templates"); }}
+                      disabled={isSaving}
+                      style={{ gap: "8px" }}
+                    >
+                      {isSaving ? "Saving…" : "Generate Portfolio"} <Sparkles className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Perf badge */}
