@@ -144,6 +144,12 @@ const Preview = () => {
 
           if (templateId && loadedData.templateId !== templateId) {
             dataToSet.templateId = templateId;
+            const targetTpl = templateList.find((t) => t.id === templateId);
+            const isLightTpl = targetTpl?.categories?.includes("Light");
+            dataToSet.designSettings = {
+              ...(loadedData.designSettings || {}),
+              themeMode: isLightTpl ? "light" : "dark"
+            };
             await savePortfolio(dataToSet, `Selected template ${templateId}`);
           }
 
@@ -174,6 +180,21 @@ const Preview = () => {
       console.error("Failed to fetch portfolio data", err);
     }
   }
+
+  useEffect(() => {
+    if (templateId && !portfolioLoaded) {
+      const targetTpl = templateList.find((t) => t.id === templateId);
+      const isLightTpl = targetTpl?.categories?.includes("Light");
+      setPortfolioData(prev => ({
+        ...prev,
+        templateId: templateId,
+        designSettings: {
+          ...(prev.designSettings || {}),
+          themeMode: isLightTpl ? "light" : "dark"
+        }
+      }));
+    }
+  }, [templateId, portfolioLoaded]);
 
   useEffect(() => {
     fetchPortfolio();
