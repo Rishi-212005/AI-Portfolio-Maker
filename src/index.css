@@ -6,8 +6,8 @@
 
 @layer base {
   :root {
-    /* Premium professional Light Theme colors */
-    --background: 210 40% 98%;
+    /* Premium professional Light Theme colors (Structured slates & whites) */
+    --background: 210 20% 98%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -16,32 +16,32 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 221.2 83.2% 53.3%; /* Professional clean royal blue */
+    --primary: 221.2 83.2% 53.3%; /* Professional deep blue */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
+    --secondary: 214.3 31.8% 95%; /* Soft slate gray */
     --secondary-foreground: 222 47% 11%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 262.1 83.3% 57.8%; /* Premium violet/purple */
+    --accent: 262.1 83.3% 57.8%; /* Royal purple/violet */
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 31.8% 90%;
+    --input: 214.3 31.8% 90%;
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 210 40% 97.5%;
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 221.2 83.2% 53.3%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 210 40% 95%;
+    --sidebar-accent: 214.3 31.8% 95%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 214.3 31.8% 90%;
     --sidebar-ring: 221.2 83.2% 53.3%;
