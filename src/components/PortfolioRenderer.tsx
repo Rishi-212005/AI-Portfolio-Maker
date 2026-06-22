@@ -64,8 +64,7 @@ const ensureAbsoluteUrl = (url?: string): string => {
   return `https://${trimmed}`;
 };
 
-const PortfolioRenderer = ({ templateId, data, isDark: ignoredIsDark = false, themeColor, sectionOrder, isPreview = false }: Props) => {
-  const isDark = false;
+const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
   const defaultOrder = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const activeThemeColor = themeColor || "hsl(190 95% 55%)";
