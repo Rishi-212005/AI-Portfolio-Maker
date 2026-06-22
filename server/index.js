@@ -133,6 +133,17 @@ const portfolioHistorySchema = new mongoose.Schema({
 
 const PortfolioHistory = mongoose.model("PortfolioHistory", portfolioHistorySchema);
 
+const notificationSchema = new mongoose.Schema({
+  portfolio_id: { type: mongoose.Schema.Types.ObjectId, ref: "Portfolio", required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  message: { type: String, required: true },
+  is_read: { type: Boolean, default: false },
+  created_at: { type: Date, default: Date.now }
+});
+
+const Notification = mongoose.model("Notification", notificationSchema);
+
 function mapPortfolioToMongoose(data) {
   if (!data) return {};
   const updateFields = {
@@ -319,6 +330,7 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
 
     // Map database structured fields to data object expected by frontend
     const data = {
+      id: portfolio._id.toString(),
       name: portfolio.name || "",
       title: portfolio.title || "",
       about: portfolio.about || "",
@@ -870,6 +882,71 @@ app.post("/api/portfolio/history/revert", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Revert portfolio error", err);
     return res.status(500).json({ message: "Failed to revert portfolio" });
+  }
+});
+
+app.post("/api/portfolio/contact", async (req, res) => {
+  const { portfolioId, name, email, message } = req.body;
+  if (!portfolioId || !name || !email || !message) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+  try {
+    const notification = new Notification({
+      portfolio_id: portfolioId,
+      name,
+      email,
+      message
+    });
+    await notification.save();
+    return res.json({ message: "Message submitted successfully" });
+  } catch (err) {
+    console.error("Submit contact error", err);
+    return res.status(500).json({ message: "Failed to submit message", error: err.message });
+  }
+});
+
+app.get("/api/portfolio/notifications", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const portfolio = await Portfolio.findOne({ user_id: userId });
+    if (!portfolio) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    const notifications = await Notification.find({ portfolio_id: portfolio._id })
+      .sort({ created_at: -1 });
+    return res.json({ notifications });
+  } catch (err) {
+    console.error("Get notifications error", err);
+    return res.status(500).json({ message: "Failed to fetch notifications" });
+  }
+});
+
+app.post("/api/portfolio/notifications/read", requireAuth, async (req, res) => {
+  const { notificationId } = req.body;
+  try {
+    await Notification.findByIdAndUpdate(notificationId, { $set: { is_read: true } });
+    return res.json({ message: "Marked as read" });
+  } catch (err) {
+    console.error("Mark read notification error", err);
+    return res.status(500).json({ message: "Failed to update notification" });
+  }
+});
+
+app.post("/api/portfolio/notifications/clear", requireAuth, async (req, res) => {
+  const { notificationId } = req.body;
+  try {
+    if (notificationId) {
+      await Notification.findByIdAndDelete(notificationId);
+    } else {
+      const portfolio = await Portfolio.findOne({ user_id: req.user.id });
+      if (portfolio) {
+        await Notification.deleteMany({ portfolio_id: portfolio._id });
+      }
+    }
+    return res.json({ message: "Cleared successfully" });
+  } catch (err) {
+    console.error("Clear notifications error", err);
+    return res.status(500).json({ message: "Failed to clear notifications" });
   }
 });
 
