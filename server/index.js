@@ -5,6 +5,13 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, "..");
 
 dotenv.config();
 
@@ -865,6 +872,272 @@ app.post("/api/portfolio/history/revert", requireAuth, async (req, res) => {
     return res.status(500).json({ message: "Failed to revert portfolio" });
   }
 });
+
+// Recursively read all files in a directory (excluding node_modules, dist, etc.)
+async function scanDirectory(dir, baseDir = dir) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const filesMap = {};
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const relPath = path.relative(baseDir, fullPath).replace(/\\/g, "/");
+
+    // Skip ignored directories/files
+    if (
+      entry.name === "node_modules" ||
+      entry.name === "dist" ||
+      entry.name === ".git" ||
+      entry.name === ".vscode" ||
+      entry.name === "server" ||
+      entry.name === ".env" ||
+      entry.name === "bun.lockb" ||
+      entry.name === "package-lock.json"
+    ) {
+      continue;
+    }
+
+    if (entry.isDirectory()) {
+      const subMap = await scanDirectory(fullPath, baseDir);
+      Object.assign(filesMap, subMap);
+    } else {
+      const ext = path.extname(entry.name).toLowerCase();
+      if ([".ts", ".tsx", ".js", ".jsx", ".json", ".css", ".html", ".md"].includes(ext)) {
+        try {
+          const content = await fs.readFile(fullPath, "utf-8");
+          filesMap[relPath] = content;
+        } catch (e) {
+          console.warn(`Failed to read file ${relPath}:`, e.message);
+        }
+      }
+    }
+  }
+
+  return filesMap;
+}
+
+app.get("/api/portfolio/codebase-files", async (req, res) => {
+  try {
+    const files = await scanDirectory(projectRoot);
+    return res.json({ files });
+  } catch (err) {
+    console.error("Failed to scan directory:", err);
+    return res.status(500).json({ message: "Failed to read codebase files", error: err.message });
+  }
+});
+
+app.post("/api/ai/edit-code", async (req, res) => {
+  const { portfolioData, message } = req.body;
+  if (!portfolioData || !message) {
+    return res.status(400).json({ message: "portfolioData and message are required" });
+  }
+
+  // Parse token if present to authenticate
+  const authHeader = req.headers.authorization;
+  let userId = null;
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const token = authHeader.slice("Bearer ".length);
+      const payload = jwt.verify(token, jwtSecret);
+      userId = payload.id;
+    } catch (e) {
+      console.warn("Invalid token in AI edit:", e.message);
+    }
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "your-gemini-api-key-here" || apiKey.trim() === "") {
+    return res.status(500).json({
+      message: "❌ PortGen AI code editor requires a GEMINI_API_KEY in server/.env to modify files."
+    });
+  }
+
+  try {
+    // Read the active editable codebase files
+    const rendererPath = path.join(projectRoot, "src/components/PortfolioRenderer.tsx");
+    const cssPath = path.join(projectRoot, "src/index.css");
+    const dataPath = path.join(projectRoot, "src/data/mockData.ts");
+
+    const rendererContent = await fs.readFile(rendererPath, "utf-8");
+    const cssContent = await fs.readFile(cssPath, "utf-8");
+    const dataContent = await fs.readFile(dataPath, "utf-8");
+
+    // Compact portfolioData for prompt (save tokens)
+    const compactData = {
+      ...portfolioData,
+      photo: portfolioData.photo ? "[profile-photo-preserved]" : "",
+      about: portfolioData.about?.slice(0, 400),
+      projects: (portfolioData.projects || []).map((p, i) => ({
+        title: p.title,
+        description: p.description?.slice(0, 200),
+        tags: p.tags,
+        link: p.link,
+        liveLink: p.liveLink
+      }))
+    };
+
+    const systemPrompt = `You are a Senior Frontend Engineer and IDE Agent.
+You are tasked with modifying the source files of a portfolio website React codebase to fulfill the user's custom layout, design, formatting, text, or animation requests.
+
+You have access to modify these three key codebase files:
+1. "src/components/PortfolioRenderer.tsx" (Contains all portfolio template React components like TechMinimalist, RetroTerminal, GlassAurora, etc. You can modify their HTML/JSX structures, React state, or layout classes).
+2. "src/index.css" (Contains custom global CSS styles, animations, keyframes, transitions, or retro effects. You can write CSS rules here).
+3. "src/data/mockData.ts" (Contains the default portfolio JSON details like name, title, skills, experience, projects, etc. Edit this to change default text content).
+
+When the user asks to modify layouts, colors, text content, animations, or styling, determine which of the three files to modify. Keep modifications clean, modern, high-quality, and robust.
+
+Along with updating the files, you must also return the updated portfolio data JSON (portfolioData) matching the new text/design edits.
+
+CRITICAL INSTRUCTIONS:
+- Return ONLY a valid JSON object (no markdown, no code fences) with exactly these three fields:
+  - "files": an array of objects, where each object has:
+    - "path": either "src/components/PortfolioRenderer.tsx", "src/index.css", or "src/data/mockData.ts"
+    - "content": the complete, updated content of that file (do not truncate, return the entire file).
+  - "updatedData": the updated portfolioData JSON object (same structure as the input, with requested text/design settings changes applied).
+  - "explanation": a concise, friendly explanation describing exactly what you changed in the code files.
+- Ensure the code you return is syntactically valid TypeScript/React and CSS. Preserve all imports, exports, and core logic.
+
+Editable Files contents:
+
+--- START OF FILE: src/components/PortfolioRenderer.tsx ---
+${rendererContent}
+--- END OF FILE: src/components/PortfolioRenderer.tsx ---
+
+--- START OF FILE: src/index.css ---
+${cssContent}
+--- END OF FILE: src/index.css ---
+
+--- START OF FILE: src/data/mockData.ts ---
+${dataContent}
+--- END OF FILE: src/data/mockData.ts ---
+
+Current Portfolio Data JSON:
+${JSON.stringify(compactData, null, 2)}
+
+User Instruction: "${message}"
+
+Respond with raw JSON only.`;
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const modelsToTry = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro"
+    ];
+
+    let result = null;
+    let successModel = "";
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[IDE AI Edit] Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: { responseMimeType: "application/json" }
+        });
+
+        result = await model.generateContent(systemPrompt);
+        if (result) {
+          successModel = modelName;
+          break;
+        }
+      } catch (err) {
+        console.error(`[IDE AI Edit] Model ${modelName} failed:`, err.message);
+        lastError = err;
+      }
+    }
+
+    if (!result) {
+      throw lastError || new Error("All fallback models failed.");
+    }
+
+    console.log(`[IDE AI Edit] Generated successfully using model: ${successModel}`);
+    let responseText = result.response.text().trim();
+    if (responseText.startsWith("```")) {
+      responseText = responseText.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    }
+
+    const parsed = JSON.parse(responseText);
+    if (!parsed.files || !parsed.explanation || !parsed.updatedData) {
+      throw new Error("Invalid AI response structure - missing files, updatedData or explanation.");
+    }
+
+    // Write updated files back to disk
+    for (const fileItem of parsed.files) {
+      let targetFilePath = "";
+      if (fileItem.path.includes("PortfolioRenderer.tsx")) {
+        targetFilePath = rendererPath;
+      } else if (fileItem.path.includes("index.css")) {
+        targetFilePath = cssPath;
+      } else if (fileItem.path.includes("mockData.ts")) {
+        targetFilePath = dataPath;
+      }
+
+      if (targetFilePath && fileItem.content && fileItem.content.trim().length > 10) {
+        console.log(`[IDE AI Edit] Writing modified file to disk: ${fileItem.path}`);
+        await fs.writeFile(targetFilePath, fileItem.content, "utf-8");
+      }
+    }
+
+    // Restore preserved data fields like photos which were not sent to AI
+    const aiData = parsed.updatedData;
+    const restoredData = {
+      ...aiData,
+      photo: portfolioData.photo || aiData.photo || "",
+      projects: (aiData.projects || []).map((aiProj, idx) => {
+        const origMatch = (portfolioData.projects || [])[idx] || {};
+        return {
+          ...aiProj,
+          imageUrl: aiProj.imageUrl || origMatch.imageUrl || ""
+        };
+      })
+    };
+
+    let updatedChatHistory = [];
+    if (req.body.chatHistory) {
+      updatedChatHistory = [
+        ...req.body.chatHistory,
+        { role: "user", content: message, timestamp: new Date() },
+        { role: "ai", content: parsed.explanation, timestamp: new Date() }
+      ];
+    }
+
+    if (userId) {
+      const updateFields = mapPortfolioToMongoose(restoredData);
+      updateFields.chat_history = updatedChatHistory;
+
+      await Portfolio.findOneAndUpdate(
+        { user_id: userId },
+        { $set: updateFields },
+        { upsert: true }
+      );
+
+      const historyEntry = new PortfolioHistory({
+        user_id: userId,
+        portfolio_data: restoredData,
+        chat_history: updatedChatHistory,
+        description: `IDE AI: ${parsed.explanation.slice(0, 100)}`
+      });
+      await historyEntry.save();
+    }
+
+    return res.json({
+      success: true,
+      updatedData: restoredData,
+      explanation: parsed.explanation,
+      chatHistory: updatedChatHistory
+    });
+
+  } catch (err) {
+    console.error("IDE AI edit error:", err);
+    return res.status(500).json({
+      message: `❌ Failed to execute code edit: ${err.message}`,
+      error: err.message
+    });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Auth server running on http://localhost:${port}`);
