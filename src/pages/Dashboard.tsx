@@ -385,6 +385,34 @@ const CSS = `
 }
 `;
 
+const emptyPortfolioData: PortfolioData = {
+  name: "",
+  title: "",
+  about: "",
+  photo: "",
+  email: "",
+  phone: "",
+  location: "",
+  website: "",
+  skills: [],
+  projects: [],
+  experience: [],
+  education: [],
+  socialLinks: [{ platform: "GitHub", url: "" }],
+  certifications: [],
+  achievements: [],
+  languages: [],
+  designSettings: {
+    themeMode: "light",
+    accentColor: "hsl(221.2 83.2% 53.3%)",
+    animationsEnabled: true,
+    scanlinesEnabled: false,
+    showOpportunitiesBadge: false,
+    opportunitiesText: "",
+    customCss: ""
+  }
+};
+
 const stepLabels = [
   { icon: User,           label: "Basic Info" },
   { icon: Briefcase,      label: "Experience & Edu" },
@@ -536,9 +564,6 @@ const Dashboard = () => {
           const body = await res.json();
           if (body?.data) {
             setData(body.data as PortfolioData);
-            if (body.data.name && body.data.name !== defaultPortfolioData.name) {
-              setShowManualForm(true);
-            }
           }
         }
       } catch { /* fallback */ } finally { setIsLoading(false); }
@@ -850,6 +875,7 @@ const Dashboard = () => {
                   <button
                     onClick={() => {
                       setShowManualForm(true);
+                      setUploadedFile(null);
                     }}
                     className="cp-btn-next"
                     style={{
@@ -897,7 +923,10 @@ const Dashboard = () => {
                 <div className="cp-or-line" />
               </div>
               <button
-                onClick={() => setShowManualForm(true)}
+                onClick={() => {
+                  setData(emptyPortfolioData);
+                  setShowManualForm(true);
+                }}
                 className="cp-btn-next"
                 style={{
                   background: "#fff",
