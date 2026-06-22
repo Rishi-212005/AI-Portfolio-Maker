@@ -69,7 +69,7 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const activeThemeColor = themeColor || "hsl(190 95% 55%)";
 
-  // Normalize all URLs in the data object before rendering to prevent relative URL issues
+  // Normalize all URLs and array collections in the data object before rendering to prevent relative URL issues and runtime TypeError crashes
   const normalizedData = useMemo(() => {
     return {
       ...data,
@@ -80,13 +80,19 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
       })),
       projects: (data.projects || []).map(p => ({
         ...p,
+        tags: p.tags || [],
         link: p.link ? ensureAbsoluteUrl(p.link) : p.link,
         liveLink: p.liveLink ? ensureAbsoluteUrl(p.liveLink) : p.liveLink
       })),
+      skills: data.skills || [],
+      experience: data.experience || [],
+      education: data.education || [],
       certifications: (data.certifications || []).map(c => ({
         ...c,
         credentialUrl: c.credentialUrl ? ensureAbsoluteUrl(c.credentialUrl) : c.credentialUrl
-      }))
+      })),
+      achievements: data.achievements || [],
+      languages: data.languages || []
     };
   }, [data]);
 
@@ -1149,29 +1155,181 @@ const TechMinimalist = ({ data, isDark, themeColor, sectionOrder, isPreview = fa
 
 /* ====== 2. RETRO TERMINAL (INTERACTIVE CLI) ====== */
 const RetroTerminal = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioData; isDark?: boolean; themeColor: string; sectionOrder: string[] }) => {
+  const hostUser = useMemo(() => (data.name || "user").toLowerCase().replace(/\s+/g, "-"), [data.name]);
+  const hostPrompt = `visitor@${hostUser}-portfolio:~$`;
+
+  // Dynamically constructed files mapping database details to standard coding extension filenames
+  const files = useMemo(() => {
+    const fileMap: Record<string, { label: string; lang: string; content: string }> = {
+      "welcome.txt": {
+        label: "welcome.txt",
+        lang: "plaintext",
+        content: `========================================================================
+██████╗  ██████╗ ██████╗ ████████╗ ██████╗ ███████╗███╗   ██╗
+██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝ ██╔════╝████╗  ██║
+██████╔╝██║   ██║██████╔╝   ██║   ██║  ███╗█████╗  ██╔██╗ ██║
+██╔═══╝ ██║   ██║██╔══██╗   ██║   ██║   ██║██╔══╝  ██║╚██╗██║
+██║     ╚██████╔╝██║  ██║   ██║   ╚██████╔╝███████╗██║ ╚████║
+╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═══╝
+========================================================================
+SYSTEM STATUS : ONLINE / ACTIVE
+IP NODE       : 127.0.0.1
+HOST DOMAIN   : ${hostUser}.dev
+DEVELOPER     : ${data.name}
+DESIGNATION   : ${data.title}
+
+Welcome to my retro terminal interface.
+You can explore my credentials in two ways:
+  1. Click files in the Workspace Sidebar on the left.
+  2. Use the interactive shell terminal at the bottom.
+     Type 'help' to see list of valid command inputs.
+
+Try clicking 'about.txt' or 'skills.json' to review data.
+------------------------------------------------------------------------`
+      },
+      "about.txt": {
+        label: "about.txt",
+        lang: "plaintext",
+        content: `========================================================================
+PROFILE BIOGRAPHY
+========================================================================
+Name       : ${data.name}
+C-Title    : ${data.title}
+Location   : ${data.location || "Remote node"}
+Contact    : ${data.email || "No email mapped"}
+Voice      : ${data.phone || "No phone mapped"}
+Weblink    : ${data.website || "No URL mapped"}
+
+------------------------------------------------------------------------
+${data.about}
+------------------------------------------------------------------------`
+      },
+      "skills.json": {
+        label: "skills.json",
+        lang: "json",
+        content: JSON.stringify({
+          developer: data.name,
+          title: data.title,
+          status: "Fully loaded",
+          skills: data.skills || []
+        }, null, 2)
+      },
+      "projects.json": {
+        label: "projects.json",
+        lang: "json",
+        content: JSON.stringify((data.projects || []).map(p => ({
+          name: p.title,
+          description: p.description,
+          technologies: p.tags || [],
+          code_repo: p.link || "",
+          live_demo: p.liveLink || null
+        })), null, 2)
+      },
+      "experience.md": {
+        label: "experience.md",
+        lang: "markdown",
+        content: `# Chronological Career Log
+
+${(data.experience || []).map((e, idx) => `## ${idx + 1}. ${e.role}
+*Company:* ${e.company}
+*Duration:* ${e.duration}
+*Duty log:* ${e.description}
+
+---`).join("\n\n")}`
+      },
+      "education.md": {
+        label: "education.md",
+        lang: "markdown",
+        content: `# Academic Credentials Log
+
+${(data.education || []).map(edu => `- **${edu.degree}**
+  *Facility:* ${edu.school}
+  *Year:*     ${edu.year}`).join("\n\n")}`
+      },
+      "certs.json": {
+        label: "certs.json",
+        lang: "json",
+        content: JSON.stringify((data.certifications || []).map(c => ({
+          credential: c.name,
+          authority: c.issuer,
+          awarded: c.date,
+          verification: c.credentialUrl || null
+        })), null, 2)
+      },
+      "contact.sh": {
+        label: "contact.sh",
+        lang: "bash",
+        content: `#!/bin/bash
+# Networking Uplink Script
+# Initializing communication tunnels with node ${data.name}...
+
+echo "Handshaking with socket..."
+echo "Node response: SUCCESS"
+echo "---------------------------------------------------------"
+echo "Email Node      : ${data.email || "Unlinked"}"
+echo "Secure Comm Node: ${data.phone || "Unlinked"}"
+echo "Current Grid    : ${data.location || "Unlocated"}"
+echo "---------------------------------------------------------"
+echo "Active Tunnels  :"
+${(data.socialLinks || []).map(l => `echo "  - [${l.platform}] ${l.url}"`).join("\n")}
+echo "---------------------------------------------------------"
+echo "Session transmission completed. Terminal returning."`
+      }
+    };
+    return fileMap;
+  }, [data, hostUser]);
+
+  const [activeFile, setActiveFile] = useState<string>("welcome.txt");
+  const [openTabs, setOpenTabs] = useState<string[]>(["welcome.txt"]);
   const [history, setHistory] = useState<string[]>([
-    "Sai Rishi Kumar Vedi Terminal [Version 2.0.1]",
-    "(c) 2026 Developer Console. All rights reserved.",
+    `${data.name} Terminal Console [Version 2.0.1]`,
+    `(c) 2026 ${data.name} Mainframe Nodes. All rights reserved.`,
     "",
-    "Type 'help' to see the list of executable commands.",
-    "Click bracket links to run configurations directly.",
+    "Interactive console ready. Type 'help' for support.",
     ""
   ]);
   const [cmdInput, setCmdInput] = useState("");
+  
   const endRef = useRef<HTMLDivElement>(null);
+  const editorScrollRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll console output to bottom when history changes
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [history]);
 
-  const sectionCommands: Record<string, string> = {
-    about: "about",
-    skills: "skills",
-    projects: "projects",
-    experience: "experience",
-    education: "education",
-    certifications: "certs",
-    contact: "socials"
+  // Click file from sidebar
+  const handleSelectFile = (fileName: string) => {
+    if (!openTabs.includes(fileName)) {
+      setOpenTabs(prev => [...prev, fileName]);
+    }
+    setActiveFile(fileName);
+    
+    // Automatically trigger visual console commands to match the editor file selection
+    const fileObj = files[fileName];
+    if (fileObj) {
+      setHistory(prev => [
+        ...prev,
+        `${hostPrompt} cat ${fileName}`,
+        fileObj.content,
+        ""
+      ]);
+    }
+
+    // Scroll editor window to top on file swap
+    if (editorScrollRef.current) {
+      editorScrollRef.current.scrollTop = 0;
+    }
+  };
+
+  const handleCloseTab = (e: React.MouseEvent, tabName: string) => {
+    e.stopPropagation();
+    const newTabs = openTabs.filter(t => t !== tabName);
+    setOpenTabs(newTabs);
+    
+    if (activeFile === tabName && newTabs.length > 0) {
+      setActiveFile(newTabs[newTabs.length - 1]);
+    }
   };
 
   const executeCommand = (command: string) => {
@@ -1180,67 +1338,81 @@ const RetroTerminal = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
     const lower = raw.toLowerCase();
     let res: string[] = [];
 
+    // Map console commands directly to open/display file contents automatically
+    if (lower === "welcome.txt" || lower === "cat welcome.txt") {
+      handleSelectFile("welcome.txt");
+      return;
+    }
+    if (lower === "about" || lower === "about.txt" || lower === "cat about.txt") {
+      handleSelectFile("about.txt");
+      return;
+    }
+    if (lower === "skills" || lower === "skills.json" || lower === "cat skills.json") {
+      handleSelectFile("skills.json");
+      return;
+    }
+    if (lower === "projects" || lower === "projects.json" || lower === "cat projects.json") {
+      handleSelectFile("projects.json");
+      return;
+    }
+    if (lower === "experience" || lower === "experience.md" || lower === "cat experience.md") {
+      handleSelectFile("experience.md");
+      return;
+    }
+    if (lower === "education" || lower === "education.md" || lower === "cat education.md") {
+      handleSelectFile("education.md");
+      return;
+    }
+    if (lower === "certs" || lower === "certs.json" || lower === "cat certs.json") {
+      handleSelectFile("certs.json");
+      return;
+    }
+    if (lower === "contact.sh" || lower === "cat contact.sh" || lower === "socials") {
+      handleSelectFile("contact.sh");
+      return;
+    }
+
     switch (lower) {
       case "help":
         res = [
-          "Available Commands:",
-          "  about          Read user bio overview",
-          "  skills         Display core technology inventory",
-          "  projects       Show parsed project configs",
-          "  experience     List professional career roadmap",
-          "  education      Print certified credentials",
-          "  certs          Show security and dev certificates",
-          "  clear          Wipe console history log",
-          "  socials        List networking URLs"
+          "Available Shell Commands:",
+          "  ls             List workspace configuration files",
+          "  cat [file]     Print target file in terminal (e.g. cat skills.json)",
+          "  clear          Wipe terminal logging history",
+          "  whoami         Query currently logged in host mainframe metadata",
+          "",
+          "Workstation Files:",
+          "  welcome.txt    General system greeting & guidelines",
+          "  about.txt      Professional profile outline",
+          "  skills.json    Developer skill ratings & categories",
+          "  projects.json  Directory of completed software deployments",
+          "  experience.md  Chronological employment history",
+          "  education.md   Academic achievements",
+          "  certs.json     Authorized licenses and credentials",
+          "  contact.sh     Uplink execution script for socials/network"
         ];
         break;
-      case "about":
+      case "ls":
         res = [
-          `> CAT ABOUT.TXT`,
-          data.about,
-          `Title: ${data.title}`
+          "Workspace Files in /src:",
+          "  -rw-r--r--   1 visitor  staff   1.2K Jun 22 21:44 welcome.txt",
+          "  -rw-r--r--   1 visitor  staff   890B Jun 22 21:44 about.txt",
+          "  -rw-r--r--   1 visitor  staff   720B Jun 22 21:44 skills.json",
+          "  -rw-r--r--   1 visitor  staff   1.8K Jun 22 21:44 projects.json",
+          "  -rw-r--r--   1 visitor  staff   1.4K Jun 22 21:44 experience.md",
+          "  -rw-r--r--   1 visitor  staff   620B Jun 22 21:44 education.md",
+          "  -rw-r--r--   1 visitor  staff   810B Jun 22 21:44 certs.json",
+          "  -rwxr-xr-x   1 visitor  staff   980B Jun 22 21:44 contact.sh"
         ];
         break;
-      case "skills":
+      case "whoami":
         res = [
-          `> LIST-SKILLS --ALL`,
-          data.skills.map(s => `  [x] ${s}`).join("\n")
-        ];
-        break;
-      case "projects":
-        res = [
-          `> GET-PROJECTS`,
-          ...data.projects.map((p) => 
-            `  * File: ${p.title.toLowerCase().replace(/\s+/g, "_")}.cfg\n    Desc: ${p.description}\n    Tags: ${p.tags.join(" / ")}\n    Repo: ${p.link}${p.liveLink ? `\n    Live: ${p.liveLink}` : ""}`
-          )
-        ];
-        break;
-      case "experience":
-        res = [
-          `> QUERY-CAREER`,
-          ...data.experience.map(e => `  - ${e.role} @ ${e.company} (${e.duration})\n    Log: ${e.description}`)
-        ];
-        break;
-      case "education":
-        res = [
-          `> GET-ACADEMICS`,
-          ...data.education.map(edu => `  - ${edu.degree} from ${edu.school} (${edu.year})`)
-        ];
-        break;
-      case "certs":
-        if (data.certifications) {
-          res = [
-            `> LOAD-CERTIFICATES`,
-            ...data.certifications.map(c => `  [Awarded] ${c.name} (${c.issuer}, ${c.date})`)
-          ];
-        } else {
-          res = ["No certificates loaded."];
-        }
-        break;
-      case "socials":
-        res = [
-          `> CONNECT-NET`,
-          ...data.socialLinks.map(l => `  - ${l.platform}: ${l.url}`)
+          `Mainframe Profile Node:`,
+          `  Developer : ${data.name}`,
+          `  Title     : ${data.title}`,
+          `  Session   : ACTIVE`,
+          `  Terminal  : xterm-256color`,
+          `  Client IP : 192.168.1.45`
         ];
         break;
       case "clear":
@@ -1248,69 +1420,159 @@ const RetroTerminal = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
         setCmdInput("");
         return;
       default:
-        res = [`Command not found: '${raw}'. Type 'help' for available commands.`];
+        res = [`Command not found: '${raw}'. Type 'help' to review directory and commands.`];
     }
 
-    setHistory(prev => [...prev, `visitor@rishi-portfolio:~$ ${raw}`, ...res, ""]);
+    setHistory(prev => [...prev, `${hostPrompt} ${raw}`, ...res, ""]);
     setCmdInput("");
   };
 
+  const activeContent = files[activeFile]?.content || "File not found.";
+  const activeLang = files[activeFile]?.lang || "plaintext";
+
   return (
-    <div className={`min-h-screen font-mono p-4 md:p-8 flex flex-col justify-between relative transition-colors duration-300 ${isDark ? "bg-black" : "bg-zinc-50"}`}>
-      {/* Blinking CRT scanline overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[size:100%_4px,3px_100%] pointer-events-none opacity-20" />
+    <div className={`h-[85vh] min-h-[580px] max-h-[850px] font-mono border-2 flex flex-col md:flex-row justify-between relative overflow-hidden transition-all duration-300 ${isDark ? "bg-black border-green-950 text-green-400" : "bg-stone-900 border-stone-850 text-green-500"}`}>
+      {/* Blinking CRT scanline laser overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.18)_50%)] bg-[size:100%_4px] pointer-events-none opacity-25 z-30" />
       
-      {/* Sticky Bracket Nav */}
-      <div className={`sticky top-0 z-10 border-b pb-3 flex flex-wrap gap-4 text-xs font-mono uppercase justify-between items-center mb-6 transition-colors duration-300 ${isDark ? "bg-black/95 border-slate-900 text-slate-400" : "bg-zinc-50/95 border-zinc-200 text-zinc-650"}`} style={{ color: themeColor, borderColor: `${themeColor}20` }}>
-        <span>[CLI_PORTFOLIO]</span>
-        <div className="flex flex-wrap gap-2 text-[10px]">
-          {sectionOrder.map(secId => {
-            const cmd = sectionCommands[secId];
-            if (!cmd) return null;
+      {/* 1. LEFT FILE TREE SIDEBAR */}
+      <aside className={`w-full md:w-52 flex flex-col justify-between shrink-0 border-b md:border-b-0 md:border-r z-15 ${isDark ? "border-green-950 bg-black" : "border-stone-800 bg-stone-950 text-green-500/90"}`} style={{ borderColor: `${themeColor}25` }}>
+        <div>
+          {/* Workspace Header */}
+          <div className="p-3 border-b flex items-center gap-1.5 text-[10px] tracking-wider uppercase font-black" style={{ color: themeColor, borderColor: `${themeColor}20` }}>
+            <Terminal className="h-3.5 w-3.5" />
+            <span>EXPLORER : SRC</span>
+          </div>
+          
+          {/* Folder Hierarchy List */}
+          <div className="p-2 space-y-1.5 text-xs">
+            <div className="text-[10px] text-zinc-500 font-bold uppercase select-none">// workspace</div>
+            <div className="pl-2 space-y-1">
+              {Object.keys(files).map((fName) => {
+                const isActive = activeFile === fName;
+                const isExecutable = fName.endsWith(".sh");
+                const isJson = fName.endsWith(".json");
+                const isMd = fName.endsWith(".md");
+
+                let fileColor = "text-green-500";
+                if (isActive) fileColor = "text-white font-bold bg-green-950/40 rounded-sm";
+                else if (isExecutable) fileColor = "text-amber-500 hover:text-amber-400";
+                else if (isJson) fileColor = "text-cyan-400 hover:text-cyan-300";
+                else if (isMd) fileColor = "text-blue-400 hover:text-blue-300";
+                
+                return (
+                  <button
+                    key={fName}
+                    onClick={() => handleSelectFile(fName)}
+                    className={`w-full text-left py-1 px-1.5 flex items-center gap-1.5 cursor-pointer transition-colors text-[11px] ${fileColor}`}
+                    style={isActive ? { borderLeft: `2px solid ${themeColor}` } : {}}
+                  >
+                    <span>{isExecutable ? "⚙" : isJson ? "{}" : isMd ? "☰" : "📄"}</span>
+                    <span className="truncate">{fName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* System Node Info Footer */}
+        <div className="p-3 border-t text-[10px] text-zinc-500 select-none hidden md:block" style={{ borderColor: `${themeColor}20` }}>
+          <div>NODE: ONLINE</div>
+          <div className="truncate">USR: {hostUser}</div>
+        </div>
+      </aside>
+
+      {/* 2. RIGHT WORKSPACE (TABS + FILE WRITER + BOTTOM TERMINAL) */}
+      <section className="flex-1 flex flex-col justify-between overflow-hidden relative bg-black">
+        {/* TOP TAB ROW */}
+        <div className={`flex border-b text-[10px] uppercase font-bold shrink-0 overflow-x-auto ${isDark ? "border-green-950 bg-neutral-950" : "border-stone-850 bg-stone-900"}`} style={{ borderColor: `${themeColor}20` }}>
+          {openTabs.map((tabName) => {
+            const isActive = activeFile === tabName;
             return (
-              <button 
-                key={cmd} 
-                onClick={() => executeCommand(cmd)}
-                className="transition-colors hover:underline cursor-pointer border px-2 py-0.5 rounded"
-                style={{ color: themeColor, borderColor: `${themeColor}20`, backgroundColor: isDark ? "black" : "white" }}
+              <div
+                key={tabName}
+                onClick={() => setActiveFile(tabName)}
+                className={`py-2 px-3.5 border-r cursor-pointer flex items-center gap-2 transition-colors select-none ${isActive ? "bg-black text-white border-b-2" : "text-zinc-500 hover:text-zinc-300"}`}
+                style={isActive ? { borderBottomColor: themeColor, borderRightColor: `${themeColor}20` } : { borderRightColor: `${themeColor}20` }}
               >
-                [{cmd.toUpperCase()}]
-              </button>
+                <span>{tabName}</span>
+                {openTabs.length > 1 && (
+                  <button onClick={(e) => handleCloseTab(e, tabName)} className="hover:text-red-400 transition-colors ml-1 font-bold">×</button>
+                )}
+              </div>
             );
           })}
         </div>
-      </div>
 
-      {/* Main Console history view */}
-      <div className={`flex-1 max-w-4xl mx-auto w-full space-y-2 overflow-y-auto mb-6 p-6 shadow-inner text-sm md:text-base leading-relaxed border transition-colors duration-300 ${isDark ? "bg-black/60 border-slate-900" : "bg-white border-zinc-200 shadow-sm"}`} style={{ color: themeColor }}>
-        {history.map((line, i) => (
-          <p key={i} className="whitespace-pre-wrap">{line}</p>
-        ))}
-        <div ref={endRef} />
-      </div>
+        {/* MIDDLE CODE VIEWER */}
+        <div 
+          ref={editorScrollRef}
+          className="flex-1 overflow-y-auto p-4 md:p-6 text-xs md:text-sm leading-relaxed border-b bg-black/45 scrollbar-thin select-text" 
+          style={{ borderColor: `${themeColor}20` }}
+        >
+          {activeFile && (
+            <div className="font-mono">
+              {/* Tab Header breadcrumb */}
+              <div className="text-[10px] text-zinc-600 mb-3 select-none">// Workspace: src/{activeFile} ({activeLang})</div>
+              
+              {/* Code text content mapping line numbers */}
+              <div className="flex">
+                <div className="w-8 shrink-0 text-zinc-700 select-none text-right pr-3 font-semibold border-r border-zinc-900">
+                  {activeContent.split("\n").map((_, lineIdx) => (
+                    <div key={lineIdx}>{lineIdx + 1}</div>
+                  ))}
+                </div>
+                <pre className="pl-4 flex-1 whitespace-pre-wrap overflow-x-auto text-emerald-400" style={{ color: activeFile.endsWith(".sh") ? "#f59e0b" : activeFile.endsWith(".json") ? "#22d3ee" : undefined }}>
+                  <code>{activeContent}</code>
+                </pre>
+              </div>
+            </div>
+          )}
+        </div>
 
-      {/* Input panel prompt */}
-      <div className={`max-w-4xl mx-auto w-full border-t pt-4 flex gap-2 items-center transition-colors duration-300 ${isDark ? "bg-black border-slate-900 text-slate-400" : "bg-zinc-50 border-zinc-200 text-zinc-500"}`} style={{ borderColor: `${themeColor}20` }}>
-        <span className="shrink-0 select-none" style={{ color: themeColor }}>visitor@rishi-portfolio:~$</span>
-        <form onSubmit={(e) => { e.preventDefault(); executeCommand(cmdInput); }} className="flex-1 flex gap-2">
-          <input 
-            type="text" 
-            value={cmdInput} 
-            onChange={(e) => setCmdInput(e.target.value)} 
-            placeholder="Type 'help' and press Enter..."
-            className="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 font-mono"
-            style={{ color: themeColor }}
-            autoFocus 
-          />
-          <button 
-            type="submit" 
-            className="border text-xs px-4 py-1.5 uppercase font-bold rounded transition-opacity hover:opacity-80"
-            style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}05` }}
-          >
-            Run
-          </button>
-        </form>
-      </div>
+        {/* BOTTOM SHELL PANEL CONTAINER */}
+        <div className="h-44 md:h-52 flex flex-col justify-between shrink-0 bg-neutral-950 font-mono text-[11px] md:text-xs">
+          {/* Console Header tab */}
+          <div className="px-3 py-1.5 border-b flex items-center justify-between text-[9px] text-zinc-500 select-none" style={{ borderColor: `${themeColor}20` }}>
+            <span>TERMINAL : SH SHELL</span>
+            <span>PORT_LOAD: 8080/TCP</span>
+          </div>
+
+          {/* Console logger window */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-1 select-text scrollbar-thin">
+            {history.map((line, lineIdx) => (
+              <p key={lineIdx} className="whitespace-pre-wrap leading-relaxed" style={{ color: line.startsWith("visitor@") ? "#f59e0b" : undefined }}>
+                {line}
+              </p>
+            ))}
+            <div ref={endRef} />
+          </div>
+
+          {/* Terminal prompt keyboard input */}
+          <div className="border-t p-2 flex items-center gap-1.5 shrink-0 bg-black" style={{ borderColor: `${themeColor}20` }}>
+            <span className="shrink-0 text-amber-500 font-bold select-none">{hostPrompt}</span>
+            <form onSubmit={(e) => { e.preventDefault(); executeCommand(cmdInput); }} className="flex-1 flex gap-2">
+              <input 
+                type="text" 
+                value={cmdInput} 
+                onChange={(e) => setCmdInput(e.target.value)} 
+                placeholder="Type 'help' or click files above..."
+                className="flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 font-mono text-xs text-green-400"
+                style={{ color: themeColor }}
+                autoFocus 
+              />
+              <button 
+                type="submit" 
+                className="border text-[10px] px-3.5 py-1 uppercase font-bold rounded-sm cursor-pointer transition-colors"
+                style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}05` }}
+              >
+                RUN
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
@@ -1332,11 +1594,15 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
         className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] rounded-full blur-[140px] pointer-events-none animate-float [animation-delay:2s] opacity-20" 
         style={{ backgroundColor: themeColor }}
       />
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 w-[350px] h-[350px] rounded-full blur-[120px] pointer-events-none animate-float [animation-delay:4s] opacity-15" 
+        style={{ backgroundColor: isDark ? "#c084fc" : "#6366f1" }}
+      />
 
       {/* Floater navbar */}
       <nav className={`${isPreview ? "absolute" : "fixed"} top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6`}>
         <div className={`backdrop-blur-xl border rounded-full px-6 py-3 flex items-center justify-between shadow-lg transition-colors duration-300 ${isDark ? "bg-slate-900/40 border-slate-700/20" : "bg-white/80 border-slate-200"}`}>
-          <a href="#" className="font-black text-sm" style={{ color: themeColor }}>SRK</a>
+          <a href="#" className="font-black text-sm" style={{ color: themeColor }}>{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
           <div className="flex gap-4 text-xs font-semibold">
             {sections.map(sec => (
               <a 
@@ -1706,7 +1972,7 @@ const GlassAurora = ({ data, isDark, themeColor, sectionOrder, isPreview = false
                       <div className="space-y-2.5 text-xs font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <a href={`mailto:${data.email}`} className="hover:underline">{data.email || "sai.rishi@nic-intern.in"}</a>
+                          <a href={`mailto:${data.email}`} className="hover:underline">{data.email || "hello@domain.com"}</a>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -1754,7 +2020,10 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
   const sections = sectionOrder;
   
   return (
-    <div className={`min-h-screen font-mono py-16 px-6 relative transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" : "bg-white text-zinc-900 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))]"} bg-[size:100%_4px,3px_100%]`}>
+    <div className={`min-h-screen font-mono py-16 px-6 relative transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" : "bg-white text-zinc-900 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.05)_50%),linear-gradient(90deg,rgba(255,0,0,0.02),rgba(0,255,0,0.01),rgba(0,0,255,0.02))]"} bg-[size:100%_4px,3px_100%] overflow-hidden`}>
+      {/* Cyberpunk neon grid pattern overlay */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
+      <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full blur-[130px] pointer-events-none opacity-20 z-0" style={{ backgroundColor: themeColor }} />
       {/* Sticky Glitch Nav */}
       <nav className={`sticky top-0 z-40 pb-3 flex items-center justify-between mb-10 border-b-2 transition-colors duration-300 ${isDark ? "bg-zinc-950 border-slate-900" : "bg-white border-zinc-200"}`}>
         <a href="#" className="font-black tracking-widest text-sm" style={{ color: themeColor }}>// CYBER_PORT</a>
@@ -2120,7 +2389,7 @@ const CyberpunkGlitch = ({ data, isDark, themeColor, sectionOrder }: { data: Por
                       <div className="space-y-2.5 font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <a href={`mailto:${data.email}`} className="underline">{data.email || "sai.rishi@nic-intern.in"}</a>
+                          <a href={`mailto:${data.email}`} className="underline">{data.email || "hello@domain.com"}</a>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -2171,7 +2440,7 @@ const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: Po
     <div className={`min-h-screen font-sans pb-20 px-6 transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100" : "bg-amber-50/50 text-zinc-950"}`}>
       {/* Sticky Brutalist Nav */}
       <nav className={`sticky top-0 z-40 border-b-4 border-black py-4 px-2 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-zinc-900 text-white" : "bg-amber-100 text-black"}`}>
-        <a href="#" className="text-xl font-black tracking-tighter border-4 border-black bg-white text-black px-3 py-1 shadow-[2px_2px_0px_#000]">SRK</a>
+        <a href="#" className="text-xl font-black tracking-tighter border-4 border-black bg-white text-black px-3 py-1 shadow-[2px_2px_0px_#000]">{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
         <div className="flex gap-2 sm:gap-4 text-xs font-black uppercase">
           {sections.map(sec => (
             <a 
@@ -2503,7 +2772,7 @@ const NeobrutalistBold = ({ data, isDark, themeColor, sectionOrder }: { data: Po
                       <div className={`space-y-2.5 font-mono ${isDark ? "text-zinc-400" : "text-zinc-850"}`}>
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <a href={`mailto:${data.email}`} className="underline">{data.email || "sai.rishi@nic-intern.in"}</a>
+                          <a href={`mailto:${data.email}`} className="underline">{data.email || "hello@domain.com"}</a>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -2858,7 +3127,7 @@ const ElegantEditorial = ({ data, isDark, themeColor, sectionOrder }: { data: Po
                       <div className="space-y-2 font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <a href={`mailto:${data.email}`} className="underline">{data.email || "rishi@portgen.ai"}</a>
+                          <a href={`mailto:${data.email}`} className="underline">{data.email || "hello@domain.com"}</a>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -3181,7 +3450,7 @@ const GradientSpotlight = ({ data, isDark, themeColor, sectionOrder }: { data: P
                       <div className="space-y-2 font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <span>{data.email || "rishi@portgen.ai"}</span>
+                          <span>{data.email || "hello@domain.com"}</span>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -3455,7 +3724,7 @@ const InteractiveTimeline = ({ data, isDark, themeColor, sectionOrder }: { data:
                       <div className="space-y-2 font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <span>{data.email || "rishi@portgen.ai"}</span>
+                          <span>{data.email || "hello@domain.com"}</span>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -3603,32 +3872,44 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
                   <h2 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>Project Stack</h2>
                   <div className="grid gap-6 sm:grid-cols-2">
                     {data.projects.map((p) => (
-                      <div key={p.title} className="bg-slate-900/20 border border-slate-850 p-5 rounded-xl hover:bg-slate-800/10 transition-all flex flex-col justify-between overflow-hidden group">
+                      <motion.div 
+                        key={p.title} 
+                        whileHover={{ 
+                          scale: 1.025, 
+                          borderColor: themeColor,
+                          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.1), 0 0 15px ${themeColor}20`
+                        }}
+                        className={`p-5 rounded-xl border flex flex-col justify-between overflow-hidden group transition-all duration-300 tilt-3d hover-glow shimmer-hover ${isDark ? "bg-slate-900/30 border-slate-850" : "bg-white border-slate-200"}`}
+                      >
                         {p.imageUrl ? (
-                          <div className="h-32 w-full overflow-hidden border border-slate-800 mb-4 rounded">
-                            <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                          <div className="h-36 w-full overflow-hidden border border-slate-800/40 mb-4 rounded-lg">
+                            <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-106" />
                           </div>
-                        ) : null}
+                        ) : (
+                          <div className="h-28 w-full flex items-center justify-center border border-slate-800/30 mb-4 rounded-lg bg-slate-950/20">
+                            <Code className="h-8 w-8 opacity-25 group-hover:opacity-40 transition-opacity" style={{ color: themeColor }} />
+                          </div>
+                        )}
                         <div>
                           <h3 className={`font-bold text-sm mb-1 ${headerText}`}>{p.title}</h3>
-                          <p className={`text-xs mb-3 leading-relaxed line-clamp-2 ${mutedText}`}>{p.description}</p>
+                          <p className={`text-xs mb-4 leading-relaxed line-clamp-2 ${mutedText}`}>{p.description}</p>
                           <div className="flex flex-wrap gap-1 mb-4">
                             {p.tags.map((tag) => (
-                              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-sm font-mono" style={{ color: themeColor, backgroundColor: `${themeColor}12` }}>{tag}</span>
+                              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-sm font-mono border" style={{ color: themeColor, backgroundColor: `${themeColor}10`, borderColor: `${themeColor}20` }}>{tag}</span>
                             ))}
                           </div>
                         </div>
-                        <div className="flex gap-4 text-xs font-bold uppercase pt-2 border-t border-slate-800/40" style={{ color: themeColor }}>
+                        <div className="flex gap-4 text-xs font-bold uppercase pt-3.5 border-t" style={{ color: themeColor, borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" }}>
                           <a href={p.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline">
                             <Github className="h-3.5 w-3.5" /> Source
                           </a>
                           {p.liveLink ? (
-                            <a href={p.liveLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline text-white">
+                            <a href={p.liveLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:underline text-white" style={{ color: themeColor }}>
                               <ExternalLink className="h-3.5 w-3.5" /> Demo
                             </a>
                           ) : null}
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </motion.section>
@@ -3720,7 +4001,7 @@ const CardDeck = ({ data, isDark, themeColor, sectionOrder }: { data: PortfolioD
                       <div className="space-y-2 font-mono">
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4" style={{ color: themeColor }} />
-                          <span>{data.email || "rishi@portgen.ai"}</span>
+                          <span>{data.email || "hello@domain.com"}</span>
                         </div>
                         {data.phone && (
                           <div className="flex items-center gap-2">
@@ -3833,12 +4114,26 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
         );
       case "skills":
         return (
-          <div className="space-y-4">
-            <div className="text-xs text-slate-550 font-mono tracking-widest uppercase mb-1">// STACK PACKAGES</div>
-            <div className="flex flex-wrap gap-2">
-              {data.skills.map((s) => (
-                <span key={s} className="bg-slate-900 text-slate-200 border border-slate-800 rounded px-3 py-1.5 text-xs font-mono" style={{ borderLeftColor: themeColor, borderLeftWidth: "3px" }}>{s}</span>
-              ))}
+          <div className="space-y-6">
+            <div className="text-xs text-slate-500 font-mono tracking-widest uppercase mb-1">// Stack Packages & Core Engine Nodes</div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {data.skills.map((s, idx) => {
+                const percentage = 75 + (idx * 7) % 25;
+                const barFilled = Math.round(percentage / 10);
+                const barStr = "█".repeat(barFilled) + "░".repeat(10 - barFilled);
+                return (
+                  <div key={s} className="bg-slate-900 border border-slate-850 p-4 rounded-xl font-mono text-xs flex flex-col justify-between hover:border-slate-800 transition-colors">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-200 font-bold">{s}</span>
+                      <span className="text-slate-500">{percentage}% Capacity</span>
+                    </div>
+                    <div className="text-[10px] tracking-wider font-semibold font-mono flex items-center gap-2">
+                      <span style={{ color: themeColor }}>[{barStr}]</span>
+                      <span className="text-slate-600">v1.{(idx * 2) % 10}.{(idx * 3) % 9}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
@@ -3850,19 +4145,22 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
               {data.projects.map((p) => (
                 <div key={p.title} className="bg-slate-900 border border-slate-850 rounded-xl overflow-hidden flex flex-col justify-between group h-64 hover:border-slate-800 transition-colors">
                   {p.imageUrl ? (
-                    <div className="h-32 w-full overflow-hidden border-b border-slate-850">
+                    <div className="h-32 w-full overflow-hidden border-b border-slate-855">
                       <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     </div>
                   ) : (
-                    <div className="h-24 w-full flex items-center justify-center border-b border-slate-855 bg-slate-950/45">
-                      <Code className="h-8 w-8 text-slate-700" />
+                    <div className="h-32 w-full flex items-center justify-center border-b border-slate-855 bg-slate-950/45">
+                      <Code className="h-8 w-8 text-slate-700" style={{ color: themeColor }} />
                     </div>
                   )}
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                          <h3 className="font-bold text-sm text-slate-200">{p.title}</h3>
-                         <span className="text-[8px] bg-slate-950 px-1.5 py-0.5 rounded font-mono border border-slate-800" style={{ color: themeColor }}>Status: UP</span>
+                         <span className="text-[8px] bg-slate-950 px-2 py-0.5 rounded font-mono border border-slate-800 flex items-center gap-1">
+                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                           <span style={{ color: themeColor }}>ACTIVE</span>
+                         </span>
                       </div>
                       <p className="text-xs text-slate-450 leading-relaxed line-clamp-2 mb-2">{p.description}</p>
                       <div className="flex flex-wrap gap-1">
@@ -3978,7 +4276,7 @@ const DashboardSaas = ({ data, isDark, themeColor, sectionOrder }: { data: Portf
             <div className="space-y-4 text-xs text-slate-400">
               <p>Transmit an API-style message directly. Social links listed below.</p>
               <div className="space-y-2 font-mono">
-                <div>Mail: {data.email || "rishi@portgen.ai"}</div>
+                <div>Mail: {data.email || "hello@domain.com"}</div>
                 {data.phone && <div>Phone: {data.phone}</div>}
                 <div>Loc: {data.location || "Ananthapuramu, India"}</div>
               </div>
@@ -4101,7 +4399,7 @@ const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: Portfo
       } else if (query.includes("project") || query.includes("code") || query.includes("repos") || query.includes("work")) {
         reply = `Here are some of my featured projects:\n` + 
           data.projects.map(p => `• **${p.title}**: ${p.description}\n  - Stack: ${p.tags.join(", ")}\n  - Code: ${p.link}${p.liveLink ? `\n  - Live: ${p.liveLink}` : ""}`).join("\n\n");
-      } else if (query.includes("experience") || query.includes("intern") || query.includes("job") || query.includes("nic")) {
+      } else if (query.includes("experience") || query.includes("intern") || query.includes("job") || query.includes("work") || query.includes("career")) {
         if (data.experience && data.experience.length > 0) {
           reply = `Here is my professional timeline:\n` +
             data.experience.map(e => `• **${e.role}** at ${e.company} (${e.duration})\n  - ${e.description}`).join("\n\n");
@@ -4279,7 +4577,7 @@ const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: Portfo
                     required
                     value={adminUser}
                     onChange={e => setAdminUser(e.target.value)}
-                    placeholder="admin@sairishikumar.in"
+                    placeholder="admin@domain.com"
                     className="w-full bg-slate-900 border border-slate-850 text-xs text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-slate-800"
                   />
                 </div>
