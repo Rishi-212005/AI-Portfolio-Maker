@@ -6,11 +6,11 @@
 
 @layer base {
   :root {
-    /* Premium professional Light Theme colors (Structured slates & whites) */
-    --background: 210 20% 98%;
+    /* Premium professional Light Theme colors (Structured beige, ivory & sand) */
+    --background: 36 28% 93%; /* Rich warm beige */
     --foreground: 222 47% 11%;
 
-    --card: 0 0% 100%;
+    --card: 0 0% 100%; /* Pure white card for contrast */
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
@@ -19,10 +19,10 @@
     --primary: 221.2 83.2% 53.3%; /* Professional deep blue */
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 214.3 31.8% 95%; /* Soft slate gray */
+    --secondary: 36 15% 88%; /* Warm sand tone for inputs/fields */
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96.1%;
+    --muted: 36 15% 88%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
     --accent: 262.1 83.3% 57.8%; /* Royal purple/violet */
@@ -31,8 +31,8 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 90%;
-    --input: 214.3 31.8% 90%;
+    --border: 36 12% 82%; /* Warm border color */
+    --input: 36 12% 82%;
     --ring: 221.2 83.2% 53.3%;
 
     --radius: 0.75rem;
@@ -41,16 +41,16 @@
     --sidebar-foreground: 222 47% 11%;
     --sidebar-primary: 221.2 83.2% 53.3%;
     --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 214.3 31.8% 95%;
+    --sidebar-accent: 36 15% 88%;
     --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214.3 31.8% 90%;
+    --sidebar-border: 36 12% 82%;
     --sidebar-ring: 221.2 83.2% 53.3%;
 
     /* Custom tokens */
     --gradient-primary: linear-gradient(135deg, hsl(221.2 83.2% 53.3%), hsl(262.1 83.3% 57.8%));
-    --gradient-hero: linear-gradient(135deg, hsl(210 40% 99%) 0%, hsl(210 40% 97%) 50%, hsl(210 20% 96%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(210 40% 98% / 0.95));
-    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(210 40% 98% / 0.7));
+    --gradient-hero: linear-gradient(135deg, hsl(36 28% 95%) 0%, hsl(36 20% 91%) 50%, hsl(36 15% 88%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(36 40% 98% / 0.95));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95), hsl(36 40% 98% / 0.7));
     --shadow-glow: 0 10px 30px hsl(221.2 83.2% 53.3% / 0.08);
     --shadow-glow-lg: 0 20px 60px hsl(221.2 83.2% 53.3% / 0.12);
     --shadow-card: 0 10px 30px hsl(222 47% 11% / 0.04), 0 1px 3px hsl(222 47% 11% / 0.02);
