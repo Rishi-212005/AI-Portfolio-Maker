@@ -644,9 +644,8 @@ const Dashboard = () => {
       if (u.name) userName = u.name;
     } catch { /* noop */ }
     const parsed: PortfolioData = { ...defaultPortfolioData, name: userName };
-    setTimeout(async () => {
+    setTimeout(() => {
       setData(parsed);
-      await saveAndRedirect(parsed);
       setIsParsing(false);
     }, 1500);
   };
@@ -742,18 +741,60 @@ const Dashboard = () => {
                 </button>
               </div>
             ) : (
-              <div className="cp-file-success">
-                <CheckCircle2 className="h-5 w-5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">Resume uploaded &amp; parsed successfully!</p>
-                  <p className="text-xs text-green-700/80">{uploadedFile} — fields auto-filled</p>
+              <div className="cp-file-success flex flex-col items-start gap-4 p-5" style={{ background: "#EEF2FF", border: "1.5px solid #C7D2FE", borderRadius: "14px", color: "#374151" }}>
+                <div className="flex items-start gap-3 w-full">
+                  <CheckCircle2 className="h-5 w-5 text-[#4F46E5] shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-[#1E293B]">Resume Uploaded &amp; Parsed Successfully!</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Details have been parsed and populated. Would you like to review and fill manual details for better portfolio results, or continue directly?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setUploadedFile(null)}
+                    className="text-slate-400 hover:text-slate-600 font-bold bg-transparent border-0 cursor-pointer text-sm"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={() => setUploadedFile(null)}
-                  className="text-green-700 hover:text-green-950 font-bold px-2 py-1 text-sm bg-transparent border-0 cursor-pointer"
-                >
-                  ✕
-                </button>
+                <div className="flex gap-3 w-full mt-2">
+                  <button
+                    onClick={() => {
+                      setShowManualForm(true);
+                    }}
+                    className="cp-btn-next"
+                    style={{
+                      background: "#4F46E5",
+                      color: "#fff",
+                      padding: "0.55rem 1.25rem",
+                      fontSize: "0.82rem",
+                      fontWeight: 600,
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      border: "none"
+                    }}
+                  >
+                    Review &amp; Edit Details
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await saveAndRedirect(data);
+                    }}
+                    className="cp-btn-back"
+                    style={{
+                      background: "#fff",
+                      color: "#64748B",
+                      border: "1.5px solid #E4DFD5",
+                      padding: "0.55rem 1.25rem",
+                      fontSize: "0.82rem",
+                      fontWeight: 600,
+                      borderRadius: "8px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Skip &amp; Continue
+                  </button>
+                </div>
               </div>
             )}
           </div>
