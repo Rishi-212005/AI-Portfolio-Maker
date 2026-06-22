@@ -1,4 +1,5 @@
 export interface PortfolioData {
+  id?: string;
   // Basic Info
   name: string;
   title: string;
@@ -56,7 +57,7 @@ export interface PortfolioData {
 }
 
 export const defaultPortfolioData: PortfolioData = {
-  name: "Sai Rishi Kumar Vedi",
+  name: "Rishi",
   title: "Full-Stack Developer & Cybersecurity Enthusiast",
   about:
     "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
