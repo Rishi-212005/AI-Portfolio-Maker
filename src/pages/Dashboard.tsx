@@ -278,7 +278,7 @@ const Dashboard = () => {
     }, 1500);
   };
 
-  const inp = "h-11 bg-secondary/50 border-border/40 text-sm";
+  const inp = "h-11 bg-secondary border-border/60 text-sm";
 
   return (
     <div className="min-h-screen bg-background">
@@ -411,7 +411,7 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                <Textarea value={data.about} onChange={e => setData(p => ({ ...p, about: e.target.value }))} placeholder="Write a compelling bio about yourself…" rows={4} className="bg-secondary/50 border-border/40 text-sm" />
+                <Textarea value={data.about} onChange={e => setData(p => ({ ...p, about: e.target.value }))} placeholder="Write a compelling bio about yourself…" rows={4} className="bg-secondary border-border/60 text-sm" />
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="relative">
@@ -477,7 +477,7 @@ const Dashboard = () => {
                           <Input value={exp.company} onChange={e => updateExp(i, "company", e.target.value)} placeholder="Company Name *" className={inp} />
                           <Input value={exp.duration} onChange={e => updateExp(i, "duration", e.target.value)} placeholder="e.g. Jan 2024 – Now" className={inp} />
                         </div>
-                        <Textarea value={exp.description} onChange={e => updateExp(i, "description", e.target.value)} placeholder="Describe your responsibilities, achievements, and impact…" rows={3} className="bg-secondary/50 border-border/40 text-sm" />
+                        <Textarea value={exp.description} onChange={e => updateExp(i, "description", e.target.value)} placeholder="Describe your responsibilities, achievements, and impact…" rows={3} className="bg-secondary border-border/60 text-sm" />
                       </Card>
                     ))}
                   </div>
@@ -593,7 +593,7 @@ const Dashboard = () => {
                             className={inp}
                           />
                         </div>
-                        <Textarea value={proj.description} onChange={e => updateProject(i, "description", e.target.value)} placeholder="Describe the project, your role, tech used, and impact…" rows={3} className="bg-secondary/50 border-border/40 text-sm" />
+                        <Textarea value={proj.description} onChange={e => updateProject(i, "description", e.target.value)} placeholder="Describe the project, your role, tech used, and impact…" rows={3} className="bg-secondary border-border/60 text-sm" />
                       </Card>
                     ))}
                   </div>
