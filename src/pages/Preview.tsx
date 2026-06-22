@@ -262,7 +262,7 @@ const Preview = () => {
   };
 
   const toggleDarkMode = () => {
-    const newMode = isDarkPreview ? "light" : "dark";
+    const newMode: "light" | "dark" = isDarkPreview ? "light" : "dark";
     const updatedData = {
       ...portfolioData,
       designSettings: {
