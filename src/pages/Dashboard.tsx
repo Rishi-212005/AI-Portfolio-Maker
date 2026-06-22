@@ -7,6 +7,7 @@ import {
   Award, Globe, Phone, Mail, MapPin, Trophy, Languages, Image as ImageIcon,
   Trash2, Camera, Save, AlertCircle, Check, Star,
 } from "lucide-react";
+import JSZip from "jszip";
 import Navbar from "@/components/Navbar";
 import { defaultPortfolioData, type PortfolioData } from "@/data/mockData";
 import { API_URL } from "@/config";
@@ -401,6 +402,55 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file);
   });
 
+/* ── Dynamic PDF.js loader ── */
+const loadPdfJs = (): Promise<any> => {
+  return new Promise((resolve) => {
+    if ((window as any).pdfjsLib) {
+      resolve((window as any).pdfjsLib);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js";
+    script.onload = () => {
+      const pdfjsLib = (window as any).pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+      resolve(pdfjsLib);
+    };
+    document.body.appendChild(script);
+  });
+};
+
+/* ── Client-side Text Extractors ── */
+const extractTextFromPdf = async (file: File): Promise<string> => {
+  const pdfjsLib = await loadPdfJs();
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items.map((item: any) => item.str).join(" ");
+    text += pageText + "\n";
+  }
+  return text;
+};
+
+const extractTextFromDocx = async (file: File): Promise<string> => {
+  const zip = await JSZip.loadAsync(file);
+  const docXml = await zip.file("word/document.xml")?.async("string");
+  if (!docXml) return "";
+  return docXml.replace(/<[^>]+>/g, " ");
+};
+
+const extractTextFromTxt = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+};
+
 /* ── styled section heading ── */
 const SH = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
   <div className="cp-section-heading">
@@ -635,19 +685,58 @@ const Dashboard = () => {
     setData(p => ({ ...p, languages: (p.languages || []).filter((_, j) => j !== i) }));
 
   /* ── file parse ── */
-  const processFile = (fileName: string) => {
-    setUploadedFile(fileName);
+  const processFile = async (file: File) => {
+    setUploadedFile(file.name);
     setIsParsing(true);
-    let userName = "Alex Johnson";
     try {
-      const u = JSON.parse(localStorage.getItem("auth_user") || "{}");
-      if (u.name) userName = u.name;
-    } catch { /* noop */ }
-    const parsed: PortfolioData = { ...defaultPortfolioData, name: userName };
-    setTimeout(() => {
-      setData(parsed);
+      let text = "";
+      if (file.name.toLowerCase().endsWith(".pdf")) {
+        text = await extractTextFromPdf(file);
+      } else if (file.name.toLowerCase().endsWith(".docx")) {
+        text = await extractTextFromDocx(file);
+      } else {
+        text = await extractTextFromTxt(file);
+      }
+
+      let userName = "Alex Johnson";
+      try {
+        const u = JSON.parse(localStorage.getItem("auth_user") || "{}");
+        if (u.name) userName = u.name;
+      } catch { /* noop */ }
+
+      const token = localStorage.getItem("auth_token");
+      const prompt = `Extract all details (name, title, bio/about, contact details like email/phone/location/website, education history, work experience roles, skills, projects, certifications, achievements, and languages) from the following resume text.
+      
+      ONLY extract information present in this resume text. You must replace all mock items completely. If a field is not found in the resume, leave it blank or default. Do not keep old placeholder info.
+      
+      Resume text:
+      ${text}`;
+
+      const res = await fetch(`${API_URL}/api/ai/edit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          portfolioData: { ...defaultPortfolioData, name: userName },
+          message: prompt
+        })
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        if (body?.updatedData) {
+          setData(body.updatedData);
+        }
+      } else {
+        console.error("Failed to parse resume via AI:", await res.text());
+      }
+    } catch (err) {
+      console.error("Resume extraction error:", err);
+    } finally {
       setIsParsing(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -714,7 +803,7 @@ const Dashboard = () => {
                   e.preventDefault();
                   setIsDragOver(false);
                   const f = e.dataTransfer.files?.[0];
-                  if (f) processFile(f.name);
+                  if (f) processFile(f);
                 }}
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -725,7 +814,7 @@ const Dashboard = () => {
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) processFile(f.name);
+                    if (f) processFile(f);
                   }}
                 />
                 <div className="cp-upload-icon-wrap">
