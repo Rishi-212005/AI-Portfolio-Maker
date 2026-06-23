@@ -251,7 +251,67 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user && email.toLowerCase() === "admin@domain.com" && password === "admin123") {
+      // Auto-seed admin user
+      const passwordHash = bcrypt.hashSync("admin123", 10);
+      user = new User({
+        name: "Admin User",
+        email: "admin@domain.com",
+        password_hash: passwordHash
+      });
+      await user.save();
+
+      // Create a default portfolio for this admin user
+      const defaultPortfolio = new Portfolio({
+        user_id: user._id,
+        template_id: "tech-minimalist",
+        name: "Sai Rishi Kumar Vedi",
+        title: "Full-Stack Developer & Cybersecurity Enthusiast",
+        about: "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
+        email: "sairishikumarvedi@gmail.com",
+        phone: "+91 98765 43210",
+        location: "Ananthapuramu, Andhra Pradesh, India",
+        website: "https://rishi-212005.github.io/Personel-Portfolio/",
+        skills: [
+          "React", "TypeScript", "JavaScript",
+          "Node.js", "Express", "PHP", "Python",
+          "MySQL", "MongoDB",
+          "TailwindCSS", "Git", "Linux",
+        ],
+        projects: [
+          {
+            title: "Academia Authenticator",
+            description: "An AI-powered academic verification system with OCR data extraction and secure credential parsing. Reduces manual verification time by 80%.",
+            tags: ["Python", "OCR", "FastAPI", "MongoDB"],
+            link: "https://github.com/Rishi-212005/Academia-Authenticator",
+            liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
+            imageUrl: ""
+          }
+        ],
+        experience: [
+          {
+            role: "Software Engineer Intern",
+            company: "National Informatics Centre (NIC)",
+            duration: "May 2025 – Jul 2025",
+            description: "Designed e-governance system workflows, implemented RBAC authentication modules, and optimized secure backend queries in PHP/MySQL."
+          }
+        ],
+        education: [
+          {
+            degree: "B.Tech Computer Science & Engineering",
+            school: "JNTU Anantapur",
+            year: "2023 – 2027"
+          }
+        ],
+        socialLinks: [
+          { platform: "GitHub", url: "https://github.com/Rishi-212005" },
+          { platform: "LinkedIn", url: "https://linkedin.com/in/sairishikumarvedi" }
+        ]
+      });
+      await defaultPortfolio.save();
+    }
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -400,6 +460,68 @@ app.post("/api/portfolio", requireAuth, async (req, res) => {
       description: description
     });
     await historyEntry.save();
+
+    // Sync updated data directly to mockData.ts in the codebase
+    try {
+      const mockDataPath = path.join(projectRoot, "src/data/mockData.ts");
+      const mockDataContent = `export interface PortfolioData {
+  id?: string;
+  name: string;
+  title: string;
+  about: string;
+  photo?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  skills: string[];
+  projects: {
+    title: string;
+    description: string;
+    tags: string[];
+    link: string;
+    liveLink?: string;
+    imageUrl?: string;
+  }[];
+  experience: {
+    role: string;
+    company: string;
+    duration: string;
+    description: string;
+  }[];
+  education: {
+    degree: string;
+    school: string;
+    year: string;
+  }[];
+  socialLinks: { platform: string; url: string }[];
+  certifications?: {
+    name: string;
+    issuer: string;
+    date: string;
+    imageUrl?: string;
+    credentialUrl?: string;
+  }[];
+  achievements?: string[];
+  languages?: { name: string; level: string }[];
+  designSettings?: {
+    themeMode?: "dark" | "light";
+    accentColor?: string;
+    animationsEnabled?: boolean;
+    scanlinesEnabled?: boolean;
+    showOpportunitiesBadge?: boolean;
+    opportunitiesText?: string;
+    customCss?: string;
+  };
+}
+
+export const defaultPortfolioData: PortfolioData = ${JSON.stringify(data, null, 2)};
+`;
+      await fs.writeFile(mockDataPath, mockDataContent, "utf-8");
+      console.log(`[Codebase Sync] Successfully synced changes to mockData.ts at ${mockDataPath}`);
+    } catch (fsErr) {
+      console.error("[Codebase Sync] Failed to write mockData.ts on disk:", fsErr.message);
+    }
 
     console.log(`[Portfolio] Saved and snapshot created for user ${userId} — keys: ${Object.keys(data).join(", ")}`);
     return res.status(200).json({ 
@@ -1597,6 +1719,63 @@ Respond with raw JSON only.`;
   }
 });
 
+
+app.post("/api/ai/portfolio-chat", async (req, res) => {
+  const { portfolioData, message, chatHistory } = req.body;
+  if (!portfolioData || !message) {
+    return res.status(400).json({ message: "portfolioData and message are required" });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "your-gemini-api-key-here" || apiKey.trim() === "") {
+    return res.status(500).json({ message: "Gemini API key is not configured on server" });
+  }
+
+  try {
+    const compactData = {
+      name: portfolioData.name,
+      title: portfolioData.title,
+      about: portfolioData.about,
+      skills: portfolioData.skills,
+      projects: (portfolioData.projects || []).map(p => ({ title: p.title, description: p.description, tags: p.tags })),
+      experience: (portfolioData.experience || []).map(e => ({ role: e.role, company: e.company, duration: e.duration, description: e.description })),
+      education: (portfolioData.education || []).map(edu => ({ degree: edu.degree, school: edu.school, year: edu.year })),
+      socialLinks: portfolioData.socialLinks,
+      certifications: (portfolioData.certifications || []).map(c => ({ name: c.name, issuer: c.issuer, date: c.date })),
+      achievements: portfolioData.achievements,
+      languages: portfolioData.languages
+    };
+
+    const historyPrompt = (chatHistory || [])
+      .map(m => `${m.role === "visitor" ? "Visitor" : "AI avatar of " + portfolioData.name}: ${m.text}`)
+      .join("\n");
+
+    const systemPrompt = `You are the friendly, professional, and conversational AI Avatar of ${portfolioData.name}. 
+Your goal is to answer a visitor's question on your portfolio website.
+Always represent yourself as the developer in the first person (use "I", "me", "my", "we").
+Be concise, clear, and professional. 
+Do not make up information that is not supported by your portfolio data. If you don't know the answer or if it's not in your credentials, state it politely in character.
+
+Developer Portfolio Data:
+${JSON.stringify(compactData, null, 2)}
+
+Recent Conversation History:
+${historyPrompt}
+
+New Question from Visitor: "${message}"
+AI Response (concise, conversational, first-person):`;
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(systemPrompt);
+    const replyText = result.response.text().trim();
+
+    return res.json({ reply: replyText });
+  } catch (err) {
+    console.error("AI portfolio chat error:", err);
+    return res.status(500).json({ message: "Failed to fetch response from AI avatar", error: err.message });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Auth server running on http://localhost:${port}`);
