@@ -77,9 +77,22 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 
 const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(1200);
   const [notifications, setNotifications] = useState<{ _id: string; name: string; email: string; message: string; is_read: boolean; createdAt: string }[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("auth_token");
@@ -193,35 +206,36 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
     };
   }, [data]);
 
-  const renderTemplate = () => {
+    const renderTemplate = () => {
+    const isMobile = containerWidth < 768;
     switch (templateId) {
       case "tech-minimalist":
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "retro-terminal":
         return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       case "glass-aurora":
-        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "cyberpunk-glitch":
-        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "neobrutalist-bold":
-        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "elegant-serif":
-        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "gradient-spotlight":
-        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "interactive-timeline":
-        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "card-deck":
-        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
       case "dashboard-saas":
         return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
       default:
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
     }
   };
 
-  return (
-    <div className="relative w-full h-full min-h-screen">
+    return (
+    <div ref={containerRef} className="relative w-full h-full min-h-screen">
       <style>{`
         :root {
           --portfolio-primary: ${activeThemeColor};
@@ -578,7 +592,8 @@ const TechMinimalist = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -588,6 +603,7 @@ const TechMinimalist = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
   const [activeSection, setActiveSection] = useState("home");
   const [typedText, setTypedText] = useState("");
@@ -780,7 +796,7 @@ const TechMinimalist = ({
         />
       )}
 
-      {/* ===== STICKY NAVBAR ===== */}
+            {/* ===== STICKY NAVBAR ===== */}
       <nav className={`sticky top-0 z-40 backdrop-blur-md border-b px-6 py-3.5 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-slate-950/90 border-slate-800" : "bg-white/90 border-slate-200"}`}>
         <a href="#" className="font-extrabold tracking-wider text-sm flex items-center gap-2 animate-pulse" style={{ color: themeColor }}>
           <span className="inline-flex items-center justify-center h-7 w-7 rounded text-xs font-black border" style={{ backgroundColor: `${themeColor}15`, borderColor: `${themeColor}30` }}>
@@ -788,7 +804,7 @@ const TechMinimalist = ({
           </span>
           {data.name.split(" ").map(w => w.charAt(0)).join("")}.DEV
         </a>
-        <div className="hidden sm:flex gap-5 text-[11px] font-semibold">
+        <div className={`${isMobile ? "hidden" : "flex"} gap-5 text-[11px] font-semibold`}>
           {sections.map((sec) => (
             <a
               key={sec}
@@ -818,7 +834,7 @@ const TechMinimalist = ({
               )}
             </button>
           )}
-          <button className="sm:hidden p-1 rounded transition-colors" onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
@@ -826,12 +842,12 @@ const TechMinimalist = ({
 
       {/* Mobile Menu */}
       <AnimatePresence>
-        {menuOpen && (
+        {menuOpen && isMobile && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className={`sm:hidden sticky top-[53px] z-30 border-b px-6 py-4 flex flex-col gap-3 ${isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"}`}
+            className={`sticky top-[53px] z-30 border-b px-6 py-4 flex flex-col gap-3 ${isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"}`}
           >
             {sections.map(sec => (
               <a key={sec} href={`#${sec}`} onClick={() => setMenuOpen(false)}
@@ -2044,7 +2060,8 @@ const GlassAurora = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -2054,8 +2071,10 @@ const GlassAurora = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
   const [activeSection, setActiveSection] = useState("about");
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
   
   return (
@@ -2074,22 +2093,24 @@ const GlassAurora = ({
         style={{ backgroundColor: isDark ? "#c084fc" : "#6366f1" }}
       />
 
-      {/* Floater navbar */}
+            {/* Floater navbar */}
       <nav className={`${isPreview ? "absolute" : "fixed"} top-6 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-6`}>
         <div className={`backdrop-blur-xl border rounded-full px-6 py-3 flex items-center justify-between shadow-lg transition-colors duration-300 ${isDark ? "bg-slate-900/40 border-slate-700/20" : "bg-white/80 border-slate-200"}`}>
           <a href="#" className="font-black text-sm" style={{ color: themeColor }}>{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
-          <div className="flex items-center gap-4 text-xs font-semibold">
-            {sections.map(sec => (
-              <a 
-                key={sec} 
-                href={`#${sec}`} 
-                onClick={() => setActiveSection(sec)}
-                className="transition-colors uppercase"
-                style={activeSection === sec ? { color: themeColor } : { color: isDark ? "hsl(215 20% 65%)" : "hsl(215 20% 45%)" }}
-              >
-                {sec.slice(0, 4)}
-              </a>
-            ))}
+          <div className="flex items-center gap-4">
+            <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4 text-xs font-semibold`}>
+              {sections.map(sec => (
+                <a 
+                  key={sec} 
+                  href={`#${sec}`} 
+                  onClick={() => setActiveSection(sec)}
+                  className="transition-colors uppercase"
+                  style={activeSection === sec ? { color: themeColor } : { color: isDark ? "hsl(215 20% 65%)" : "hsl(215 20% 45%)" }}
+                >
+                  {sec.slice(0, 4)}
+                </a>
+              ))}
+            </div>
             {isPreview && onOpenNotifications && (
               <button
                 onClick={onOpenNotifications}
@@ -2104,8 +2125,30 @@ const GlassAurora = ({
                 )}
               </button>
             )}
+            <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {menuOpen && isMobile && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className={`backdrop-blur-xl border rounded-2xl px-6 py-4 flex flex-col gap-3 mt-2 shadow-lg transition-colors duration-300 ${isDark ? "bg-slate-900/90 border-slate-700/20" : "bg-white/90 border-slate-200"}`}
+            >
+              {sections.map(sec => (
+                <a key={sec} href={`#${sec}`} onClick={() => { setActiveSection(sec); setMenuOpen(false); }}
+                  className="uppercase text-xs font-semibold tracking-widest"
+                  style={{ color: activeSection === sec ? themeColor : undefined }}
+                >{sec}</a>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Hero Section */}
@@ -2513,7 +2556,8 @@ const CyberpunkGlitch = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -2523,8 +2567,10 @@ const CyberpunkGlitch = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
   const [activeSection, setActiveSection] = useState("about");
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
   
   return (
@@ -2532,21 +2578,23 @@ const CyberpunkGlitch = ({
       {/* Cyberpunk neon grid pattern overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
       <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full blur-[130px] pointer-events-none opacity-20 z-0" style={{ backgroundColor: themeColor }} />
-      {/* Sticky Glitch Nav */}
-      <nav className={`sticky top-0 z-40 pb-3 flex items-center justify-between mb-10 border-b-2 transition-colors duration-300 ${isDark ? "bg-zinc-950 border-slate-900" : "bg-[#FAF9F6] border-zinc-200"}`}>
+            {/* Sticky Glitch Nav */}
+      <nav className={`sticky top-0 z-40 pb-3 flex items-center justify-between mb-10 border-b-2 transition-colors duration-300 ${isDark ? "bg-zinc-955 border-slate-900" : "bg-[#FAF9F6] border-zinc-200"}`}>
         <a href="#" className="font-black tracking-widest text-sm" style={{ color: themeColor }}>// CYBER_PORT</a>
-        <div className="flex items-center gap-4 text-[10px] font-bold">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              onClick={() => setActiveSection(sec)}
-              className="transition-colors uppercase pb-1"
-              style={activeSection === sec ? { color: themeColor, borderBottom: `2px solid ${themeColor}` } : { color: isDark ? "hsl(215 20% 65%)" : "hsl(215 20% 45%)" }}
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4 text-[10px] font-bold`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                onClick={() => setActiveSection(sec)}
+                className="transition-colors uppercase pb-1"
+                style={activeSection === sec ? { color: themeColor, borderBottom: `2px solid ${themeColor}` } : { color: isDark ? "hsl(215 20% 65%)" : "hsl(215 20% 45%)" }}
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -2561,8 +2609,30 @@ const CyberpunkGlitch = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[45px] z-30 border-b-2 px-6 py-4 flex flex-col gap-3 transition-colors duration-300 ${isDark ? "bg-zinc-955 border-slate-900" : "bg-[#FAF9F6] border-zinc-200"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setActiveSection(sec); setMenuOpen(false); }}
+                className="uppercase text-xs font-semibold tracking-widest font-mono"
+                style={{ color: activeSection === sec ? themeColor : undefined }}
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <motion.div 
@@ -2964,7 +3034,8 @@ const NeobrutalistBold = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -2974,24 +3045,28 @@ const NeobrutalistBold = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
   
   return (
     <div className={`min-h-screen font-sans pb-20 px-6 transition-colors duration-300 ${isDark ? "bg-zinc-950 text-zinc-100" : "bg-[#FFFBEB] text-zinc-950"}`}>
-      {/* Sticky Brutalist Nav */}
+            {/* Sticky Brutalist Nav */}
       <nav className={`sticky top-0 z-40 border-b-4 border-black py-4 px-2 flex items-center justify-between transition-colors duration-300 ${isDark ? "bg-zinc-900 text-white" : "bg-[#FFFBEB] text-black"}`}>
         <a href="#" className="text-xl font-black tracking-tighter border-4 border-black bg-white text-black px-3 py-1 shadow-[2px_2px_0px_#000]">{(data.name || "user").split(" ").map(w => w[0]).join("")}</a>
         <div className="flex items-center gap-2 sm:gap-4 text-xs font-black uppercase">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              className="hover:bg-cyan-200 border-2 border-black bg-white text-black px-2 py-0.5 transition-colors shadow-[1.5px_1.5px_0px_#000]"
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-2 sm:gap-4`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                className="hover:bg-cyan-200 border-2 border-black bg-white text-black px-2 py-0.5 transition-colors shadow-[1.5px_1.5px_0px_#000]"
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -3006,8 +3081,29 @@ const NeobrutalistBold = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} hover:bg-cyan-200 border-2 border-black bg-white text-black p-1 transition-colors shadow-[1.5px_1.5px_0px_#000] cursor-pointer`} onClick={() => setMenuOpen(m => !m)}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[52px] z-30 border-b-4 border-black px-6 py-4 flex flex-col gap-3 transition-colors duration-300 ${isDark ? "bg-zinc-900 text-white" : "bg-[#FFFBEB] text-black"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setMenuOpen(false); }}
+                className="hover:bg-cyan-200 border-2 border-black bg-white text-black px-3 py-1.5 transition-colors shadow-[1.5px_1.5px_0px_#000] text-center font-black uppercase text-xs"
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <div className="max-w-3xl mx-auto min-h-[80vh] flex flex-col justify-center space-y-6 pt-16">
@@ -3386,7 +3482,8 @@ const ElegantEditorial = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -3396,25 +3493,29 @@ const ElegantEditorial = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
   
   return (
     <div className={`min-h-screen font-serif py-16 px-6 transition-colors duration-300 ${isDark ? "bg-[#1c1917] text-[#fcfbf9]" : "bg-[#FDFBF7] text-[#1c1917]"}`}>
-      {/* Sticky Editorial Nav */}
+            {/* Sticky Editorial Nav */}
       <nav className={`sticky top-0 z-50 backdrop-blur-md border-b py-4 px-2 flex items-center justify-between font-sans mb-10 transition-colors duration-300 ${isDark ? "bg-[#1c1917]/95 border-stone-800" : "bg-[#FDFBF7]/95 border-[#292524]"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-widest" style={{ color: themeColor }}>{data.name.split(" ").map(w => w[0]).join("")} .</a>
         <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              className="hover:opacity-70 transition-opacity"
-              style={{ color: themeColor }}
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                className="hover:opacity-70 transition-opacity"
+                style={{ color: themeColor }}
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -3429,8 +3530,30 @@ const ElegantEditorial = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[45px] z-50 border-b py-4 px-6 flex flex-col gap-3 font-sans transition-colors duration-350 ${isDark ? "bg-[#1c1917]/95 border-stone-800" : "bg-[#FDFBF7]/95 border-[#292524]"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setMenuOpen(false); }}
+                className="uppercase text-xs font-semibold tracking-widest"
+                style={{ color: themeColor }}
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <div className="max-w-2xl mx-auto min-h-[70vh] flex flex-col justify-center text-center space-y-6">
@@ -3766,7 +3889,8 @@ const GradientSpotlight = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -3776,8 +3900,10 @@ const GradientSpotlight = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
   const [activeSection, setActiveSection] = useState("about");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const sections = sectionOrder;
@@ -3831,23 +3957,25 @@ const GradientSpotlight = ({
         }}
       />
       
-      {/* Sticky Nav */}
+            {/* Sticky Nav */}
       <nav className={`sticky top-0 z-50 backdrop-blur-md pb-3 flex items-center justify-between mb-12 border-b transition-colors duration-300 ${isDark ? "bg-[#09090b]/80 border-zinc-900" : "bg-[#f4f4f5]/80 border-zinc-200"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-widest" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')}.IO
         </a>
         <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              onClick={() => setActiveSection(sec)}
-              className="hover:text-zinc-400 transition-colors"
-              style={{ color: activeSection === sec ? themeColor : "#71717a" }}
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                onClick={() => setActiveSection(sec)}
+                className="hover:text-zinc-400 transition-colors"
+                style={{ color: activeSection === sec ? themeColor : "#71717a" }}
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -3862,8 +3990,30 @@ const GradientSpotlight = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[45px] z-50 border-b py-4 px-6 flex flex-col gap-3 font-sans transition-colors duration-300 ${isDark ? "bg-[#09090b]/95 border-zinc-900" : "bg-[#f4f4f5]/95 border-zinc-200"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setMenuOpen(false); }}
+                className="uppercase text-xs font-semibold tracking-widest"
+                style={{ color: themeColor }}
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto min-h-[60vh] flex flex-col justify-center space-y-6">
@@ -4122,7 +4272,8 @@ const InteractiveTimeline = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -4132,7 +4283,9 @@ const InteractiveTimeline = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
 
   const containerBg = isDark ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800";
@@ -4147,22 +4300,24 @@ const InteractiveTimeline = ({
 
   return (
     <div className={`min-h-screen py-16 px-6 font-sans transition-colors duration-300 ${containerBg}`}>
-      {/* Sticky Timeline Nav */}
+            {/* Sticky Timeline Nav */}
       <nav className={`sticky top-0 z-50 backdrop-blur-md border-b pb-3 flex items-center justify-between mb-12 ${isDark ? "bg-slate-950/80 border-slate-900" : "bg-slate-50/80 border-slate-200"}`}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-wider" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')} TIMELINE
         </a>
         <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              className="hover:opacity-100 transition-opacity"
-              style={{ color: themeColor }}
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                className="hover:opacity-100 transition-opacity"
+                style={{ color: themeColor }}
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -4177,8 +4332,30 @@ const InteractiveTimeline = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[45px] z-50 border-b py-4 px-6 flex flex-col gap-3 font-sans transition-colors duration-300 ${isDark ? "bg-slate-950/95 border-slate-900" : "bg-slate-50/95 border-slate-200"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setMenuOpen(false); }}
+                className="uppercase text-xs font-semibold tracking-widest"
+                style={{ color: themeColor }}
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <div className="max-w-3xl mx-auto min-h-[60vh] flex flex-col justify-center border-l-4 pl-6 md:pl-10 space-y-6 relative" style={{ borderColor: themeColor }}>
@@ -4429,7 +4606,8 @@ const CardDeck = ({
   isPreview = false,
   unreadCount = 0,
   onOpenNotifications,
-  portfolioId
+  portfolioId,
+  isMobile
 }: { 
   data: PortfolioData; 
   isDark?: boolean; 
@@ -4439,7 +4617,9 @@ const CardDeck = ({
   unreadCount?: number;
   onOpenNotifications?: () => void;
   portfolioId?: string;
+  isMobile: boolean;
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
   const sections = sectionOrder;
 
   const bg = isDark ? "bg-slate-955 text-slate-100" : "bg-[#FAF9F5] text-slate-800";
@@ -4454,22 +4634,24 @@ const CardDeck = ({
 
   return (
     <div className={`min-h-screen py-16 px-6 font-sans transition-colors duration-300 ${bg}`}>
-      {/* Sticky Deck Nav */}
-      <nav className={`sticky top-0 z-50 border-b pb-3 flex items-center justify-between mb-12 backdrop-blur-md ${isDark ? "bg-slate-950/80 border-slate-900" : "bg-[#FAF9F5]/80 border-slate-200"}`}>
+            {/* Sticky Deck Nav */}
+      <nav className={`sticky top-0 z-50 border-b pb-3 flex items-center justify-between mb-12 backdrop-blur-md ${isDark ? "bg-slate-955/80 border-slate-900" : "bg-[#FAF9F5]/80 border-slate-200"}`.replace("slate-955/80", "slate-950/80")}>
         <a href="#" className="font-extrabold text-sm uppercase tracking-wider" style={{ color: themeColor }}>
           {data.name.split(' ').map(n=>n[0]).join('')} DECK
         </a>
         <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-          {sections.map(sec => (
-            <a 
-              key={sec} 
-              href={`#${sec}`} 
-              className="hover:opacity-100 transition-opacity"
-              style={{ color: themeColor }}
-            >
-              {sec.slice(0, 4)}
-            </a>
-          ))}
+          <div className={`${isMobile ? "hidden" : "flex"} items-center gap-4`}>
+            {sections.map(sec => (
+              <a 
+                key={sec} 
+                href={`#${sec}`} 
+                className="hover:opacity-100 transition-opacity"
+                style={{ color: themeColor }}
+              >
+                {sec.slice(0, 4)}
+              </a>
+            ))}
+          </div>
           {isPreview && onOpenNotifications && (
             <button
               onClick={onOpenNotifications}
@@ -4484,8 +4666,30 @@ const CardDeck = ({
               )}
             </button>
           )}
+          <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`sticky top-[45px] z-50 border-b py-4 px-6 flex flex-col gap-3 font-sans transition-colors duration-300 ${isDark ? "bg-slate-950/95 border-slate-900" : "bg-[#FAF9F5]/95 border-slate-200"}`}
+          >
+            {sections.map(sec => (
+              <a key={sec} href={`#${sec}`} onClick={() => { setMenuOpen(false); }}
+                className="uppercase text-xs font-semibold tracking-widest"
+                style={{ color: themeColor }}
+              >{sec}</a>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hero Section */}
       <div className="max-w-4xl mx-auto min-h-[60vh] flex flex-col justify-center space-y-6">
