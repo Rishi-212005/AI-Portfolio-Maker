@@ -308,7 +308,7 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
                     </div>
                     <p className="text-zinc-300 bg-slate-950 border border-slate-900/60 p-2.5 rounded-lg whitespace-pre-wrap font-sans text-[11px] leading-relaxed select-text">{notif.message}</p>
                     <div className="text-[9px] text-zinc-550 mt-2 text-right select-none">
-                      {new Date(notif.created_at).toLocaleString()}
+                      {new Date(notif.createdAt).toLocaleString()}
                     </div>
                   </div>
                 ))
