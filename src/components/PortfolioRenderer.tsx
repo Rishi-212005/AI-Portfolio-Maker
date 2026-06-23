@@ -6578,18 +6578,29 @@ const FloatingWidgets = ({
     { role: "bot", text: `Hi there! I am an AI assistant representing ${data.name}. Feel free to ask me about credentials, projects, work experience, or tech stacks!` }
   ]);
   const [userInput, setUserInput] = useState("");
+  const [isBotTyping, setIsBotTyping] = useState(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
   
   const [adminUser, setAdminUser] = useState("");
   const [adminPass, setAdminPass] = useState("");
   const [adminMsg, setAdminMsg] = useState("");
 
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (chatMessagesEndRef.current) {
+      chatMessagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, isBotTyping]);
+
   const handleSendMessage = async (e?: React.FormEvent, presetText?: string) => {
     if (e) e.preventDefault();
     const messageText = (presetText || userInput).trim();
-    if (!messageText) return;
+    if (!messageText || isBotTyping) return;
 
+    const prevMessages = [...chatMessages];
     setChatMessages(prev => [...prev, { role: "visitor", text: messageText }]);
     setUserInput("");
+    setIsBotTyping(true);
 
     // Query server AI chat endpoint
     try {
@@ -6599,12 +6610,13 @@ const FloatingWidgets = ({
         body: JSON.stringify({
           portfolioData: data,
           message: messageText,
-          chatHistory: chatMessages.slice(-5).map(m => ({ role: m.role, text: m.text }))
+          chatHistory: prevMessages.slice(-6).map(m => ({ role: m.role, text: m.text }))
         })
       });
       if (res.ok) {
         const body = await res.json();
         if (body.reply) {
+          setIsBotTyping(false);
           setChatMessages(prev => [...prev, { role: "bot", text: body.reply }]);
           return;
         }
@@ -6613,7 +6625,7 @@ const FloatingWidgets = ({
       console.warn("AI chatbot endpoint failed, falling back to keywords:", err);
     }
 
-    // Static keywords fallback
+    // Static keywords fallback (keep isBotTyping=true until reply is set)
     setTimeout(() => {
       let reply = "";
       const query = messageText.toLowerCase();
@@ -6647,8 +6659,9 @@ const FloatingWidgets = ({
         reply = `I am a ${data.title}. Here is a bit about me:\n\n${data.about}\n\nAsk me specifically about my "skills", "projects", "experience", or "contact info"!`;
       }
 
+      setIsBotTyping(false);
       setChatMessages(prev => [...prev, { role: "bot", text: reply }]);
-    }, 600);
+    }, 800);
   };
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
@@ -6750,6 +6763,17 @@ const FloatingWidgets = ({
                   </div>
                 </div>
               ))}
+              {/* Typing indicator */}
+              {isBotTyping && (
+                <div className="flex justify-start">
+                  <div className="rounded-xl px-4 py-3 bg-slate-900 border border-slate-800/80 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="h-1.5 w-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
+              <div ref={chatMessagesEndRef} />
             </div>
 
             {/* Quick chips */}
@@ -6777,7 +6801,8 @@ const FloatingWidgets = ({
               />
               <button 
                 type="submit"
-                className="p-2 rounded-lg text-slate-950 flex items-center justify-center font-bold"
+                disabled={isBotTyping}
+                className="p-2 rounded-lg text-slate-950 flex items-center justify-center font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: themeColor }}
               >
                 <Send className="h-3.5 w-3.5" />
