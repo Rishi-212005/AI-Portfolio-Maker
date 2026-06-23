@@ -24,10 +24,15 @@ import {
   ArrowDown,
   MessageSquare,
   Lock,
+  AlertCircle,
   Send,
   Bell,
   Trash2,
-  Check
+  Check,
+  ChevronUp,
+  ChevronDown,
+  Plus,
+  Save
 } from "lucide-react";
 import type { PortfolioData } from "@/data/mockData";
 
@@ -76,12 +81,1156 @@ const getApiUrl = () => {
 };
 const API_URL = getApiUrl();
 
+/* ====== ACCORDION ITEM FOR MOBILE SECTION COLLAPSE ====== */
+const MobileAccordionItem = ({
+  sectionId,
+  themeColor,
+  isDark,
+  isExpanded,
+  onToggle,
+  children
+}: {
+  sectionId: string;
+  themeColor: string;
+  isDark: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) => {
+  const title = sectionId.charAt(0).toUpperCase() + sectionId.slice(1);
+  return (
+    <div className={`border rounded-xl transition-all duration-300 ${isDark ? "bg-slate-900/30 border-slate-900/60" : "bg-white border-slate-200/80 shadow-sm"} mb-4`}>
+      <button 
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 font-bold text-xs uppercase tracking-[0.15em] select-none text-left"
+        style={{ color: themeColor }}
+      >
+        <span>// {title}</span>
+        <span>{isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</span>
+      </button>
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className={`border-t overflow-hidden ${isDark ? "border-slate-800/40" : "border-slate-100"}`}
+          >
+            <div className="p-4 mobile-accordion-content">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+/* ====== ACCORDION ITEM FOR VISUAL EDITOR SIDE DRAWER ====== */
+const VisualAccordionItem = ({ 
+  id, 
+  title, 
+  icon: Icon, 
+  isOpen,
+  onToggle,
+  children 
+}: {
+  id: string;
+  title: string;
+  icon: React.ElementType;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) => {
+  return (
+    <div className="border-b border-slate-850 last:border-0 select-text">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between py-3 text-left font-semibold text-xs transition-colors hover:bg-slate-800/40 ${isOpen ? "text-primary" : "text-slate-300"}`}
+        style={isOpen ? { color: "var(--portfolio-primary)" } : {}}
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="h-4 w-4" />
+          <span>{title}</span>
+        </div>
+        {isOpen ? <ChevronUp className="h-4 w-4 text-slate-500" /> : <ChevronDown className="h-4 w-4 text-slate-500" />}
+      </button>
+      {isOpen && (
+        <div className="py-3 space-y-3 bg-slate-900/60 border-t border-slate-850/40 text-xs">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ====== VISUAL EDITOR SIDE DRAWER ====== */
+const VisualEditorDrawer = ({
+  data,
+  onChange,
+  onSave,
+  isSaving,
+  themeColor
+}: {
+  data: PortfolioData;
+  onChange: React.Dispatch<React.SetStateAction<PortfolioData>>;
+  onSave: () => void;
+  isSaving: boolean;
+  themeColor: string;
+}) => {
+  const [activeSec, setActiveSec] = useState<string>("about");
+  const [newSkill, setNewSkill] = useState("");
+  const [newAch, setNewAch] = useState("");
+  
+  const [expandedProj, setExpandedProj] = useState<number | null>(0);
+  const [expandedExp, setExpandedExp] = useState<number | null>(0);
+  const [expandedEdu, setExpandedEdu] = useState<number | null>(0);
+  const [expandedCert, setExpandedCert] = useState<number | null>(0);
+
+  // File reader helper
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | { projectIndex: number } | { certIndex: number }) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      if (type === "avatar") {
+        onChange(prev => ({ ...prev, photo: base64 }));
+      } else if (typeof type === "object" && "projectIndex" in type) {
+        onChange(prev => {
+          const projects = [...(prev.projects || [])];
+          projects[type.projectIndex] = { ...projects[type.projectIndex], imageUrl: base64 };
+          return { ...prev, projects };
+        });
+      } else if (typeof type === "object" && "certIndex" in type) {
+        onChange(prev => {
+          const certifications = [...(prev.certifications || [])];
+          certifications[type.certIndex] = { ...certifications[type.certIndex], imageUrl: base64 };
+          return { ...prev, certifications };
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSocialChange = (platform: string, url: string) => {
+    onChange(prev => {
+      const socialLinks = [...(prev.socialLinks || [])];
+      const idx = socialLinks.findIndex(l => l.platform.toLowerCase() === platform.toLowerCase());
+      if (idx !== -1) {
+        socialLinks[idx] = { ...socialLinks[idx], url };
+      } else {
+        socialLinks.push({ platform, url });
+      }
+      return { ...prev, socialLinks };
+    });
+  };
+
+  const handleAddSkill = () => {
+    if (newSkill.trim() && !data.skills.includes(newSkill.trim())) {
+      onChange(prev => ({ ...prev, skills: [...prev.skills, newSkill.trim()] }));
+      setNewSkill("");
+    }
+  };
+
+  const handleProjectChange = (idx: number, field: string, val: string) => {
+    onChange(prev => {
+      const projects = [...(prev.projects || [])];
+      if (field === "tags") {
+        projects[idx] = { ...projects[idx], tags: val.split(",").map(t => t.trim()).filter(Boolean) };
+      } else {
+        projects[idx] = { ...projects[idx], [field]: val };
+      }
+      return { ...prev, projects };
+    });
+  };
+
+  const handleAddProject = () => {
+    onChange(prev => {
+      const projects = [...(prev.projects || []), { title: "New Project", description: "", tags: [], link: "", liveLink: "", imageUrl: "" }];
+      setExpandedProj(projects.length - 1);
+      return { ...prev, projects };
+    });
+  };
+
+  const handleExpChange = (idx: number, field: string, val: string) => {
+    onChange(prev => {
+      const experience = [...(prev.experience || [])];
+      experience[idx] = { ...experience[idx], [field]: val };
+      return { ...prev, experience };
+    });
+  };
+
+  const handleAddExperience = () => {
+    onChange(prev => {
+      const experience = [...(prev.experience || []), { role: "Software Engineer", company: "Company Name", duration: "2025 - Present", description: "" }];
+      setExpandedExp(experience.length - 1);
+      return { ...prev, experience };
+    });
+  };
+
+  const handleEduChange = (idx: number, field: string, val: string) => {
+    onChange(prev => {
+      const education = [...(prev.education || [])];
+      education[idx] = { ...education[idx], [field]: val };
+      return { ...prev, education };
+    });
+  };
+
+  const handleAddEducation = () => {
+    onChange(prev => {
+      const education = [...(prev.education || []), { degree: "Degree Name", school: "School Name", year: "2025" }];
+      setExpandedEdu(education.length - 1);
+      return { ...prev, education };
+    });
+  };
+
+  const handleCertChange = (idx: number, field: string, val: string) => {
+    onChange(prev => {
+      const certifications = [...(prev.certifications || [])];
+      certifications[idx] = { ...certifications[idx], [field]: val };
+      return { ...prev, certifications };
+    });
+  };
+
+  const handleAddCert = () => {
+    onChange(prev => {
+      const certifications = [...(prev.certifications || []), { name: "Certification Name", issuer: "Issuer Name", date: "2025", credentialUrl: "" }];
+      setExpandedCert(certifications.length - 1);
+      return { ...prev, certifications };
+    });
+  };
+
+  const handleAddAchievement = () => {
+    if (newAch.trim()) {
+      onChange(prev => ({ ...prev, achievements: [...(prev.achievements || []), newAch.trim()] }));
+      setNewAch("");
+    }
+  };
+
+  const handleAchievementChange = (idx: number, val: string) => {
+    onChange(prev => {
+      const achievements = [...(prev.achievements || [])];
+      achievements[idx] = val;
+      return { ...prev, achievements };
+    });
+  };
+
+  const handleLangChange = (idx: number, field: string, val: string) => {
+    onChange(prev => {
+      const languages = [...(prev.languages || [])];
+      languages[idx] = { ...languages[idx], [field]: val };
+      return { ...prev, languages };
+    });
+  };
+
+  const handleAddLanguage = () => {
+    onChange(prev => ({
+      ...prev,
+      languages: [...(prev.languages || []), { name: "Language", level: "Professional" }]
+    }));
+  };
+
+  const labelStyle = "text-[9px] uppercase font-bold text-slate-500 tracking-wider mb-1 block";
+  const inputStyle = "w-full bg-slate-950/80 border border-slate-800 focus:border-slate-700 text-xs text-white rounded px-2.5 py-1.5 focus:outline-none transition-colors";
+  const selectStyle = "w-full bg-slate-950/80 border border-slate-800 focus:border-slate-700 text-xs text-white rounded px-2 py-1.5 focus:outline-none transition-colors";
+
+  return (
+    <motion.div
+      initial={{ x: "100%" }}
+      animate={{ x: 0 }}
+      exit={{ x: "100%" }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="fixed top-14 right-0 bottom-0 w-full sm:w-96 bg-slate-900/98 border-l border-slate-800 text-slate-200 z-[49] flex flex-col shadow-2xl backdrop-blur-md overflow-hidden select-text font-sans"
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-slate-850 flex items-center justify-between bg-slate-950/30">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-white">Visual Editor Drawer</h3>
+          <p className="text-[10px] text-slate-500 mt-0.5">Edit live custom styles and data</p>
+        </div>
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className="px-3.5 py-1.5 bg-primary text-slate-950 font-bold uppercase text-[10px] tracking-wider rounded-md transition-opacity hover:opacity-90 flex items-center gap-1.5 disabled:opacity-50"
+          style={{ backgroundColor: themeColor }}
+        >
+          <Save className="h-3 w-3" />
+          {isSaving ? "Saving..." : "Save Code"}
+        </button>
+      </div>
+
+      {/* Editor list */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin">
+        {/* 1. Basic Info */}
+        <VisualAccordionItem
+          id="about"
+          title="Basic Details"
+          icon={User}
+          isOpen={activeSec === "about"}
+          onToggle={() => setActiveSec(activeSec === "about" ? "" : "about")}
+        >
+          <div className="space-y-3 px-1">
+            {/* Avatar upload */}
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-850">
+              <div className="relative h-12 w-12 rounded-full overflow-hidden border border-slate-800 bg-slate-950 flex items-center justify-center shrink-0">
+                {data.photo ? (
+                  <img src={data.photo} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-5 w-5 text-slate-655" />
+                )}
+              </div>
+              <div>
+                <span className={labelStyle}>Profile Photo</span>
+                <div className="flex gap-2 mt-1">
+                  <label className="cursor-pointer bg-slate-800 hover:bg-slate-750 px-2.5 py-1 rounded text-[10px] font-semibold text-white border border-slate-700 transition-colors">
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => handlePhotoUpload(e, "avatar")}
+                      className="hidden"
+                    />
+                  </label>
+                  {data.photo && (
+                    <button
+                      onClick={() => onChange(prev => ({ ...prev, photo: "" }))}
+                      className="text-red-400 hover:text-red-300 text-[10px] font-semibold"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelStyle}>Full Name</label>
+                <input
+                  type="text"
+                  value={data.name || ""}
+                  onChange={e => onChange(prev => ({ ...prev, name: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Professional Title</label>
+                <input
+                  type="text"
+                  value={data.title || ""}
+                  onChange={e => onChange(prev => ({ ...prev, title: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelStyle}>Biography / About</label>
+              <textarea
+                value={data.about || ""}
+                onChange={e => onChange(prev => ({ ...prev, about: e.target.value }))}
+                rows={3}
+                className={inputStyle}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelStyle}>Email Address</label>
+                <input
+                  type="email"
+                  value={data.email || ""}
+                  onChange={e => onChange(prev => ({ ...prev, email: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Phone Number</label>
+                <input
+                  type="text"
+                  value={data.phone || ""}
+                  onChange={e => onChange(prev => ({ ...prev, phone: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelStyle}>Location Node</label>
+                <input
+                  type="text"
+                  value={data.location || ""}
+                  onChange={e => onChange(prev => ({ ...prev, location: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+              <div>
+                <label className={labelStyle}>Personal Website</label>
+                <input
+                  type="text"
+                  value={data.website || ""}
+                  onChange={e => onChange(prev => ({ ...prev, website: e.target.value }))}
+                  className={inputStyle}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-slate-850 pt-2.5">
+              <span className={labelStyle}>Social Links</span>
+              <div className="grid grid-cols-3 gap-1.5 mt-1">
+                <div>
+                  <label className="text-[8px] text-slate-500 uppercase font-semibold">GitHub</label>
+                  <input
+                    type="text"
+                    value={data.socialLinks.find(l => l.platform.toLowerCase() === "github")?.url || ""}
+                    onChange={e => handleSocialChange("GitHub", e.target.value)}
+                    placeholder="URL"
+                    className={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] text-slate-500 uppercase font-semibold">LinkedIn</label>
+                  <input
+                    type="text"
+                    value={data.socialLinks.find(l => l.platform.toLowerCase() === "linkedin")?.url || ""}
+                    onChange={e => handleSocialChange("LinkedIn", e.target.value)}
+                    placeholder="URL"
+                    className={inputStyle}
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] text-slate-500 uppercase font-semibold">Twitter</label>
+                  <input
+                    type="text"
+                    value={data.socialLinks.find(l => l.platform.toLowerCase() === "twitter")?.url || ""}
+                    onChange={e => handleSocialChange("Twitter", e.target.value)}
+                    placeholder="URL"
+                    className={inputStyle}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-850 pt-2.5 flex items-center justify-between">
+              <span className="text-[9px] uppercase font-bold text-slate-400">Opportunities Badge</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={data.designSettings?.showOpportunitiesBadge !== false}
+                  onChange={e => onChange(prev => ({
+                    ...prev,
+                    designSettings: {
+                      ...(prev.designSettings || {}),
+                      showOpportunitiesBadge: e.target.checked
+                    }
+                  }))}
+                  className="rounded bg-slate-950 border-slate-800 text-primary focus:ring-0 h-4 w-4"
+                />
+                <span className="text-[10px] text-slate-400 font-semibold">Visible</span>
+              </div>
+            </div>
+            {data.designSettings?.showOpportunitiesBadge !== false && (
+              <div>
+                <label className={labelStyle}>Badge Message Text</label>
+                <input
+                  type="text"
+                  value={data.designSettings?.opportunitiesText || "AVAILABLE FOR OPPORTUNITIES"}
+                  onChange={e => onChange(prev => ({
+                    ...prev,
+                    designSettings: {
+                      ...(prev.designSettings || {}),
+                      opportunitiesText: e.target.value
+                    }
+                  }))}
+                  className={inputStyle}
+                />
+              </div>
+            )}
+          </div>
+        </VisualAccordionItem>
+
+        {/* 2. Skills Inventory */}
+        <VisualAccordionItem
+          id="skills"
+          title="Skills Inventory"
+          icon={Code}
+          isOpen={activeSec === "skills"}
+          onToggle={() => setActiveSec(activeSec === "skills" ? "" : "skills")}
+        >
+          <div className="space-y-3 px-1">
+            <div className="flex flex-wrap gap-1">
+              {data.skills.map((s, idx) => (
+                <span key={idx} className="inline-flex items-center gap-1 bg-slate-950 text-slate-300 text-[10px] px-2 py-0.5 rounded border border-slate-850">
+                  <span>{s}</span>
+                  <button
+                    onClick={() => onChange(prev => ({ ...prev, skills: prev.skills.filter((_, i) => i !== idx) }))}
+                    className="text-slate-500 hover:text-red-400"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-1.5 pt-1.5">
+              <input
+                type="text"
+                placeholder="React"
+                value={newSkill}
+                onChange={e => setNewSkill(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
+                className={inputStyle}
+              />
+              <button
+                onClick={handleAddSkill}
+                className="bg-slate-800 hover:bg-slate-750 border border-slate-700 px-3 py-1.5 rounded text-xs font-semibold text-white"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 3. Projects */}
+        <VisualAccordionItem
+          id="projects"
+          title="Projects Portfolio"
+          icon={Briefcase}
+          isOpen={activeSec === "projects"}
+          onToggle={() => setActiveSec(activeSec === "projects" ? "" : "projects")}
+        >
+          <div className="space-y-2.5 px-1">
+            {data.projects.map((proj, idx) => {
+              const isExpanded = expandedProj === idx;
+              return (
+                <div key={idx} className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950/40">
+                  <div
+                    onClick={() => setExpandedProj(isExpanded ? null : idx)}
+                    className="flex items-center justify-between p-2.5 cursor-pointer bg-slate-900/40 hover:bg-slate-850/40 select-none"
+                  >
+                    <span className="text-[11px] font-bold text-slate-300 truncate max-w-[200px]">{proj.title || `Project #${idx + 1}`}</span>
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          onChange(prev => ({ ...prev, projects: prev.projects.filter((_, i) => i !== idx) }));
+                          if (expandedProj === idx) setExpandedProj(null);
+                        }}
+                        className="p-1 rounded text-red-400 hover:bg-slate-800"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      {isExpanded ? <ChevronUp className="h-3 w-3 text-slate-500" /> : <ChevronDown className="h-3 w-3 text-slate-500" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-3 border-t border-slate-850 bg-slate-950/60 space-y-2">
+                      <div>
+                        <span className={labelStyle}>Project Image URL / Base64</span>
+                        <div className="flex gap-2 items-center mt-1">
+                          {proj.imageUrl && (
+                            <img src={proj.imageUrl} alt="preview" className="h-8 w-12 object-cover rounded border border-slate-800" />
+                          )}
+                          <label className="cursor-pointer bg-slate-850 border border-slate-750 px-2 py-1 rounded text-[9px] font-semibold text-white">
+                            Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={e => handlePhotoUpload(e, { projectIndex: idx })}
+                              className="hidden"
+                            />
+                          </label>
+                          {proj.imageUrl && (
+                            <button
+                              onClick={() => handleProjectChange(idx, "imageUrl", "")}
+                              className="text-red-400 text-[9px] font-semibold"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Title</label>
+                        <input
+                          type="text"
+                          value={proj.title || ""}
+                          onChange={e => handleProjectChange(idx, "title", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Description</label>
+                        <textarea
+                          value={proj.description || ""}
+                          onChange={e => handleProjectChange(idx, "description", e.target.value)}
+                          rows={2}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Tags (Comma-separated)</label>
+                        <input
+                          type="text"
+                          value={(proj.tags || []).join(", ")}
+                          onChange={e => handleProjectChange(idx, "tags", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className={labelStyle}>Code Link</label>
+                          <input
+                            type="text"
+                            value={proj.link || ""}
+                            onChange={e => handleProjectChange(idx, "link", e.target.value)}
+                            className={inputStyle}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelStyle}>Live Link</label>
+                          <input
+                            type="text"
+                            value={proj.liveLink || ""}
+                            onChange={e => handleProjectChange(idx, "liveLink", e.target.value)}
+                            className={inputStyle}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={handleAddProject}
+              className="w-full py-1.5 border border-dashed border-slate-700 rounded text-[10px] font-bold text-center text-slate-400 hover:text-white transition-colors"
+            >
+              + Add Project
+            </button>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 4. Experience */}
+        <VisualAccordionItem
+          id="experience"
+          title="Work Experience"
+          icon={Briefcase}
+          isOpen={activeSec === "experience"}
+          onToggle={() => setActiveSec(activeSec === "experience" ? "" : "experience")}
+        >
+          <div className="space-y-2.5 px-1">
+            {data.experience.map((exp, idx) => {
+              const isExpanded = expandedExp === idx;
+              return (
+                <div key={idx} className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950/40">
+                  <div
+                    onClick={() => setExpandedExp(isExpanded ? null : idx)}
+                    className="flex items-center justify-between p-2.5 cursor-pointer bg-slate-900/40 hover:bg-slate-850/40 select-none"
+                  >
+                    <span className="text-[11px] font-bold text-slate-300 truncate max-w-[200px]">{exp.role || `Role #${idx + 1}`}</span>
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          onChange(prev => ({ ...prev, experience: prev.experience.filter((_, i) => i !== idx) }));
+                          if (expandedExp === idx) setExpandedExp(null);
+                        }}
+                        className="p-1 rounded text-red-400 hover:bg-slate-800"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      {isExpanded ? <ChevronUp className="h-3 w-3 text-slate-500" /> : <ChevronDown className="h-3 w-3 text-slate-500" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-3 border-t border-slate-850 bg-slate-950/60 space-y-2">
+                      <div>
+                        <label className={labelStyle}>Company</label>
+                        <input
+                          type="text"
+                          value={exp.company || ""}
+                          onChange={e => handleExpChange(idx, "company", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Role</label>
+                        <input
+                          type="text"
+                          value={exp.role || ""}
+                          onChange={e => handleExpChange(idx, "role", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Duration</label>
+                        <input
+                          type="text"
+                          value={exp.duration || ""}
+                          onChange={e => handleExpChange(idx, "duration", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Job Duties / Description</label>
+                        <textarea
+                          value={exp.description || ""}
+                          onChange={e => handleExpChange(idx, "description", e.target.value)}
+                          rows={3}
+                          className={inputStyle}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={handleAddExperience}
+              className="w-full py-1.5 border border-dashed border-slate-700 rounded text-[10px] font-bold text-center text-slate-400 hover:text-white transition-colors"
+            >
+              + Add Experience
+            </button>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 5. Education */}
+        <VisualAccordionItem
+          id="education"
+          title="Education"
+          icon={GraduationCap}
+          isOpen={activeSec === "education"}
+          onToggle={() => setActiveSec(activeSec === "education" ? "" : "education")}
+        >
+          <div className="space-y-2.5 px-1">
+            {data.education.map((edu, idx) => {
+              const isExpanded = expandedEdu === idx;
+              return (
+                <div key={idx} className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950/40">
+                  <div
+                    onClick={() => setExpandedEdu(isExpanded ? null : idx)}
+                    className="flex items-center justify-between p-2.5 cursor-pointer bg-slate-900/40 hover:bg-slate-850/40 select-none"
+                  >
+                    <span className="text-[11px] font-bold text-slate-300 truncate max-w-[200px]">{edu.degree || `Degree #${idx + 1}`}</span>
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          onChange(prev => ({ ...prev, education: prev.education.filter((_, i) => i !== idx) }));
+                          if (expandedEdu === idx) setExpandedEdu(null);
+                        }}
+                        className="p-1 rounded text-red-400 hover:bg-slate-800"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      {isExpanded ? <ChevronUp className="h-3 w-3 text-slate-500" /> : <ChevronDown className="h-3 w-3 text-slate-500" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-3 border-t border-slate-850 bg-slate-950/60 space-y-2">
+                      <div>
+                        <label className={labelStyle}>Degree</label>
+                        <input
+                          type="text"
+                          value={edu.degree || ""}
+                          onChange={e => handleEduChange(idx, "degree", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>School / Institution</label>
+                        <input
+                          type="text"
+                          value={edu.school || ""}
+                          onChange={e => handleEduChange(idx, "school", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Year</label>
+                        <input
+                          type="text"
+                          value={edu.year || ""}
+                          onChange={e => handleEduChange(idx, "year", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={handleAddEducation}
+              className="w-full py-1.5 border border-dashed border-slate-700 rounded text-[10px] font-bold text-center text-slate-400 hover:text-white transition-colors"
+            >
+              + Add Education
+            </button>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 6. Certifications */}
+        <VisualAccordionItem
+          id="certifications"
+          title="Certifications"
+          icon={Award}
+          isOpen={activeSec === "certifications"}
+          onToggle={() => setActiveSec(activeSec === "certifications" ? "" : "certifications")}
+        >
+          <div className="space-y-2.5 px-1">
+            {(data.certifications || []).map((cert, idx) => {
+              const isExpanded = expandedCert === idx;
+              return (
+                <div key={idx} className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950/40">
+                  <div
+                    onClick={() => setExpandedCert(isExpanded ? null : idx)}
+                    className="flex items-center justify-between p-2.5 cursor-pointer bg-slate-900/40 hover:bg-slate-850/40 select-none"
+                  >
+                    <span className="text-[11px] font-bold text-slate-300 truncate max-w-[200px]">{cert.name || `Cert #${idx + 1}`}</span>
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          onChange(prev => ({ ...prev, certifications: (prev.certifications || []).filter((_, i) => i !== idx) }));
+                          if (expandedCert === idx) setExpandedCert(null);
+                        }}
+                        className="p-1 rounded text-red-400 hover:bg-slate-800"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      {isExpanded ? <ChevronUp className="h-3 w-3 text-slate-500" /> : <ChevronDown className="h-3 w-3 text-slate-500" />}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-3 border-t border-slate-850 bg-slate-950/60 space-y-2">
+                      <div>
+                        <span className={labelStyle}>Cert Image / Badge</span>
+                        <div className="flex gap-2 items-center mt-1">
+                          {cert.imageUrl && (
+                            <img src={cert.imageUrl} alt="preview" className="h-8 w-12 object-cover rounded border border-slate-800" />
+                          )}
+                          <label className="cursor-pointer bg-slate-850 border border-slate-750 px-2 py-1 rounded text-[9px] font-semibold text-white">
+                            Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={e => handlePhotoUpload(e, { certIndex: idx })}
+                              className="hidden"
+                            />
+                          </label>
+                          {cert.imageUrl && (
+                            <button
+                              onClick={() => handleCertChange(idx, "imageUrl", "")}
+                              className="text-red-400 text-[9px] font-semibold"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Cert Name</label>
+                        <input
+                          type="text"
+                          value={cert.name || ""}
+                          onChange={e => handleCertChange(idx, "name", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Issuer</label>
+                        <input
+                          type="text"
+                          value={cert.issuer || ""}
+                          onChange={e => handleCertChange(idx, "issuer", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Date Issued</label>
+                        <input
+                          type="text"
+                          value={cert.date || ""}
+                          onChange={e => handleCertChange(idx, "date", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>Credential Verification URL</label>
+                        <input
+                          type="text"
+                          value={cert.credentialUrl || ""}
+                          onChange={e => handleCertChange(idx, "credentialUrl", e.target.value)}
+                          className={inputStyle}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={handleAddCert}
+              className="w-full py-1.5 border border-dashed border-slate-700 rounded text-[10px] font-bold text-center text-slate-400 hover:text-white transition-colors"
+            >
+              + Add Certification
+            </button>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 7. Achievements */}
+        <VisualAccordionItem
+          id="achievements"
+          title="Achievements Honors"
+          icon={Award}
+          isOpen={activeSec === "achievements"}
+          onToggle={() => setActiveSec(activeSec === "achievements" ? "" : "achievements")}
+        >
+          <div className="space-y-3 px-1">
+            <div className="space-y-2">
+              {(data.achievements || []).map((ach, idx) => (
+                <div key={idx} className="flex gap-2 items-start bg-slate-950 p-2 rounded border border-slate-850">
+                  <textarea
+                    value={ach}
+                    onChange={e => handleAchievementChange(idx, e.target.value)}
+                    rows={2}
+                    className="flex-1 bg-transparent text-xs text-white border-0 p-0 focus:ring-0 resize-none focus:outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      onChange(prev => ({
+                        ...prev,
+                        achievements: (prev.achievements || []).filter((_, i) => i !== idx)
+                      }));
+                    }}
+                    className="text-red-400 hover:text-red-300 p-0.5"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-1.5 pt-1.5">
+              <input
+                type="text"
+                placeholder="Acquired Gold Medal in Coding Competition"
+                value={newAch}
+                onChange={e => setNewAch(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddAchievement(); } }}
+                className={inputStyle}
+              />
+              <button
+                onClick={handleAddAchievement}
+                className="bg-slate-800 hover:bg-slate-750 border border-slate-700 px-3 py-1.5 rounded text-xs font-semibold text-white font-sans shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </VisualAccordionItem>
+
+        {/* 8. Languages */}
+        <VisualAccordionItem
+          id="languages"
+          title="Languages"
+          icon={Award}
+          isOpen={activeSec === "languages"}
+          onToggle={() => setActiveSec(activeSec === "languages" ? "" : "languages")}
+        >
+          <div className="space-y-3 px-1">
+            {(data.languages || []).map((lang, idx) => (
+              <div key={idx} className="flex gap-2 items-center bg-slate-950 p-2 rounded border border-slate-850">
+                <input
+                  type="text"
+                  value={lang.name}
+                  onChange={e => handleLangChange(idx, "name", e.target.value)}
+                  className="flex-1 bg-transparent border-0 p-0 focus:ring-0 text-xs focus:outline-none"
+                  placeholder="Language"
+                />
+                <select
+                  value={lang.level}
+                  onChange={e => handleLangChange(idx, "level", e.target.value)}
+                  className="bg-slate-900 text-xs border-0 p-0 focus:ring-0 text-white select-none pr-6 rounded focus:outline-none"
+                >
+                  <option value="Native">Native</option>
+                  <option value="Professional">Professional</option>
+                  <option value="Conversational">Conversational</option>
+                  <option value="Basic">Basic</option>
+                </select>
+                <button
+                  onClick={() => onChange(prev => ({ ...prev, languages: (prev.languages || []).filter((_, i) => i !== idx) }))}
+                  className="text-red-400 hover:text-red-300 p-0.5 ml-1"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={handleAddLanguage}
+              className="w-full py-1.5 border border-dashed border-slate-700 rounded text-[10px] font-bold text-center text-slate-400 hover:text-white transition-colors"
+            >
+              + Add Language
+            </button>
+          </div>
+        </VisualAccordionItem>
+      </div>
+    </motion.div>
+  );
+};
+
+/* ====== ADMIN CONTROL BAR ====== */
+const AdminControlBar = ({
+  isEditMode,
+  setIsEditMode,
+  isSaving,
+  onSave,
+  unreadCount,
+  onOpenNotifications,
+  onLogout,
+  themeColor
+}: {
+  isEditMode: boolean;
+  setIsEditMode: (v: boolean) => void;
+  isSaving: boolean;
+  onSave: () => void;
+  unreadCount: number;
+  onOpenNotifications: () => void;
+  onLogout: () => void;
+  themeColor: string;
+}) => {
+  return (
+    <div className="fixed top-0 left-0 right-0 h-14 bg-slate-950 border-b border-slate-850 z-[50] flex items-center justify-between px-6 text-white select-none font-sans">
+      <div className="flex items-center gap-2">
+        <div className="h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center" style={{ borderColor: themeColor }}>
+          <div className="h-1.5 w-1.5 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />
+        </div>
+        <span className="text-xs font-black uppercase tracking-widest text-slate-100 font-mono">PORTGEN ADMIN CONSOLE</span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {/* Toggle Edit Mode */}
+        <label className="relative inline-flex items-center cursor-pointer select-none">
+          <input 
+            type="checkbox" 
+            checked={isEditMode} 
+            onChange={e => setIsEditMode(e.target.checked)} 
+            className="sr-only peer" 
+          />
+          <div className="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 peer-checked:after:bg-white peer-checked:after:border-emerald-650" />
+          <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-slate-350">Edit Content</span>
+        </label>
+
+        {/* Notifications */}
+        <button
+          onClick={onOpenNotifications}
+          className="relative p-1.5 rounded-lg hover:bg-slate-800/80 transition-colors"
+          title="Open Inbox Messages"
+        >
+          <Bell className="h-4.5 w-4.5 text-slate-400 hover:text-white" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[8px] h-3.5 w-3.5 leading-none font-sans font-bold flex items-center justify-center animate-pulse">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+
+        {/* Save Code changes manually */}
+        <button
+          onClick={onSave}
+          disabled={isSaving}
+          className="px-3.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-750 text-white text-[10px] font-bold uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+        >
+          <Save className="h-3 w-3" style={{ color: themeColor }} />
+          <span>{isSaving ? "Syncing..." : "Save Sync"}</span>
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={onLogout}
+          className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-400 transition-colors border border-slate-800 hover:border-red-500/20 px-2.5 py-1.5 rounded-md bg-slate-900"
+        >
+          Exit
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [notifications, setNotifications] = useState<{ _id: string; name: string; email: string; message: string; is_read: boolean; createdAt: string }[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Admin Panel states
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedData, setEditedData] = useState<PortfolioData>(data);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showMobileWarning, setShowMobileWarning] = useState(false);
+
+  useEffect(() => {
+    // Check if mobile viewport
+    const checkMobile = () => {
+      const isMob = window.innerWidth < 768;
+      const dismissed = sessionStorage.getItem("mobile_warning_dismissed");
+      if (isMob && !dismissed) {
+        setShowMobileWarning(true);
+      }
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const handleSavePortfolioChanges = async () => {
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) {
+      alert("No backend server connected. Changes saved locally in memory.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/api/portfolio`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(editedData)
+      });
+      if (res.ok) {
+        alert("Portfolio changes successfully synced to backend database and codebase mock data!");
+      } else {
+        const body = await res.json().catch(() => ({}));
+        alert(body.message || "Failed to save portfolio changes.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error: Failed to sync changes.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  useEffect(() => {
+    setEditedData(data);
+  }, [data]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      setIsAdminLoggedIn(true);
+      fetchNotifications();
+    }
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -168,12 +1317,12 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
   };
 
   useEffect(() => {
-    if (isPreview) {
+    if (isPreview || isAdminLoggedIn) {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 5000);
       return () => clearInterval(interval);
     }
-  }, [isPreview]);
+  }, [isPreview, isAdminLoggedIn]);
 
   const defaultOrder = ["about", "skills", "projects", "experience", "education", "certifications", "contact"];
   const orderToUse = sectionOrder && sectionOrder.length > 0 ? sectionOrder : defaultOrder;
@@ -181,30 +1330,31 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
 
   // Normalize all URLs and array collections in the data object before rendering to prevent relative URL issues and runtime TypeError crashes
   const normalizedData = useMemo(() => {
+    const activeData = isAdminLoggedIn ? editedData : data;
     return {
-      ...data,
-      website: data.website ? ensureAbsoluteUrl(data.website) : data.website,
-      socialLinks: (data.socialLinks || []).map(l => ({
+      ...activeData,
+      website: activeData.website ? ensureAbsoluteUrl(activeData.website) : activeData.website,
+      socialLinks: (activeData.socialLinks || []).map(l => ({
         ...l,
         url: ensureAbsoluteUrl(l.url)
       })),
-      projects: (data.projects || []).map(p => ({
+      projects: (activeData.projects || []).map(p => ({
         ...p,
         tags: p.tags || [],
         link: p.link ? ensureAbsoluteUrl(p.link) : p.link,
         liveLink: p.liveLink ? ensureAbsoluteUrl(p.liveLink) : p.liveLink
       })),
-      skills: data.skills || [],
-      experience: data.experience || [],
-      education: data.education || [],
-      certifications: (data.certifications || []).map(c => ({
+      skills: activeData.skills || [],
+      experience: activeData.experience || [],
+      education: activeData.education || [],
+      certifications: (activeData.certifications || []).map(c => ({
         ...c,
         credentialUrl: c.credentialUrl ? ensureAbsoluteUrl(c.credentialUrl) : c.credentialUrl
       })),
-      achievements: data.achievements || [],
-      languages: data.languages || []
+      achievements: activeData.achievements || [],
+      languages: activeData.languages || []
     };
-  }, [data]);
+  }, [data, editedData, isAdminLoggedIn]);
 
     const renderTemplate = () => {
     const isMobile = containerWidth < 768;
@@ -247,12 +1397,89 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
         .theme-highlight-bg { background-color: var(--portfolio-primary) !important; }
         .theme-highlight-bg-opacity { background-color: var(--portfolio-primary-bg) !important; }
         .theme-highlight-border-opacity { border-color: var(--portfolio-primary-glow) !important; }
+        .mobile-accordion-content .section-header-container,
+        .mobile-accordion-content h2,
+        .mobile-accordion-content h3.text-xs.font-bold.uppercase {
+          display: none !important;
+        }
         ${data.designSettings?.customCss || ""}
       `}</style>
 
-      <div id="portfolio-template-root" className="w-full h-full animate-fade-in">
+      {isAdminLoggedIn && (
+        <AdminControlBar
+          isEditMode={isEditMode}
+          setIsEditMode={setIsEditMode}
+          isSaving={isSaving}
+          onSave={handleSavePortfolioChanges}
+          unreadCount={unreadCount}
+          onOpenNotifications={() => setShowNotifications(true)}
+          onLogout={() => {
+            localStorage.removeItem("auth_token");
+            setIsAdminLoggedIn(false);
+            setIsEditMode(false);
+            window.location.reload();
+          }}
+          themeColor={activeThemeColor}
+        />
+      )}
+
+      <div id="portfolio-template-root" className={`w-full h-full animate-fade-in ${isAdminLoggedIn ? "pt-14" : ""}`}>
         {renderTemplate()}
       </div>
+
+      <AnimatePresence>
+        {isAdminLoggedIn && isEditMode && (
+          <VisualEditorDrawer
+            data={editedData}
+            onChange={setEditedData}
+            onSave={handleSavePortfolioChanges}
+            isSaving={isSaving}
+            themeColor={activeThemeColor}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showMobileWarning && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans select-none">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 border border-slate-800 text-slate-100 rounded-2xl max-w-md w-full p-6 shadow-2xl relative"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle className="h-7 w-7 text-amber-500 shrink-0" />
+                <h3 className="text-base font-bold text-white uppercase tracking-wider">Mobile Viewport Warning</h3>
+              </div>
+              <p className="text-xs text-slate-350 leading-relaxed mb-6">
+                This page is optimized for desktop viewports to showcase premium design elements. 
+                We have enabled a simplified mobile accordion layout for you, but for the full interactive developer portfolio experience, opening this page on a desktop is highly recommended.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    sessionStorage.setItem("mobile_warning_dismissed", "true");
+                    setShowMobileWarning(false);
+                  }}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors text-center"
+                  style={{ backgroundColor: activeThemeColor, color: "#000" }}
+                >
+                  Continue Anyway
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = "/";
+                  }}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors border border-slate-700 text-center"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showNotifications && (
@@ -332,7 +1559,16 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
         )}
       </AnimatePresence>
 
-      <FloatingWidgets data={normalizedData} themeColor={activeThemeColor} isPreview={isPreview} />
+      <FloatingWidgets 
+        data={normalizedData} 
+        themeColor={activeThemeColor} 
+        isPreview={isPreview} 
+        showAdmin={showAdmin}
+        setShowAdmin={setShowAdmin}
+        isAdminLoggedIn={isAdminLoggedIn}
+        setIsAdminLoggedIn={setIsAdminLoggedIn}
+        fetchNotifications={fetchNotifications}
+      />
     </div>
   );
 };
@@ -1874,7 +3110,7 @@ echo "Session transmission completed. Terminal returning."`
   const activeLang = files[activeFile]?.lang || "plaintext";
 
   return (
-    <div className={`h-[85vh] min-h-[580px] max-h-[850px] font-mono border-2 flex flex-col md:flex-row justify-between relative overflow-hidden transition-all duration-300 ${isDark ? "bg-black border-green-950 text-green-400" : "bg-[#F3F2EE] border-stone-400 text-stone-900"}`}>
+    <div className={`h-screen md:h-screen w-full font-mono border-2 flex flex-col md:flex-row justify-between relative overflow-hidden transition-all duration-300 ${isDark ? "bg-black border-green-950 text-green-400" : "bg-[#F3F2EE] border-stone-400 text-stone-900"}`} style={isDark ? { borderColor: `${themeColor}25` } : {}}>
       {/* Blinking CRT scanline laser overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.18)_50%)] bg-[size:100%_4px] pointer-events-none opacity-25 z-30" />
       
@@ -5318,20 +6554,36 @@ const DashboardSaas = ({
 };
 
 /* ====== FLOATING AI CHATBOT & ADMIN WIDGETS ====== */
-const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: PortfolioData; themeColor: string; isPreview?: boolean }) => {
+const FloatingWidgets = ({ 
+  data, 
+  themeColor, 
+  isPreview = false,
+  showAdmin,
+  setShowAdmin,
+  isAdminLoggedIn,
+  setIsAdminLoggedIn,
+  fetchNotifications
+}: { 
+  data: PortfolioData; 
+  themeColor: string; 
+  isPreview?: boolean;
+  showAdmin: boolean;
+  setShowAdmin: (v: boolean) => void;
+  isAdminLoggedIn: boolean;
+  setIsAdminLoggedIn: (v: boolean) => void;
+  fetchNotifications: () => Promise<void>;
+}) => {
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<{ role: "visitor" | "bot"; text: string }[]>([
     { role: "bot", text: `Hi there! I am an AI assistant representing ${data.name}. Feel free to ask me about credentials, projects, work experience, or tech stacks!` }
   ]);
   const [userInput, setUserInput] = useState("");
   
-  const [showAdmin, setShowAdmin] = useState(false);
   const [adminUser, setAdminUser] = useState("");
   const [adminPass, setAdminPass] = useState("");
   const [adminMsg, setAdminMsg] = useState("");
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  const handleSendMessage = (e?: React.FormEvent, presetText?: string) => {
+  const handleSendMessage = async (e?: React.FormEvent, presetText?: string) => {
     if (e) e.preventDefault();
     const messageText = (presetText || userInput).trim();
     if (!messageText) return;
@@ -5339,6 +6591,29 @@ const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: Portfo
     setChatMessages(prev => [...prev, { role: "visitor", text: messageText }]);
     setUserInput("");
 
+    // Query server AI chat endpoint
+    try {
+      const res = await fetch(`${API_URL || "http://localhost:4000"}/api/ai/portfolio-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          portfolioData: data,
+          message: messageText,
+          chatHistory: chatMessages.slice(-5).map(m => ({ role: m.role, text: m.text }))
+        })
+      });
+      if (res.ok) {
+        const body = await res.json();
+        if (body.reply) {
+          setChatMessages(prev => [...prev, { role: "bot", text: body.reply }]);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("AI chatbot endpoint failed, falling back to keywords:", err);
+    }
+
+    // Static keywords fallback
     setTimeout(() => {
       let reply = "";
       const query = messageText.toLowerCase();
@@ -5376,20 +6651,48 @@ const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: Portfo
     }, 600);
   };
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (adminUser.trim() && adminPass.trim()) {
-      setAdminMsg("Authenticating...");
-      setTimeout(() => {
+    if (!adminUser.trim() || !adminPass.trim()) {
+      setAdminMsg("Please fill all fields.");
+      return;
+    }
+    
+    setAdminMsg("Authenticating...");
+    try {
+      const res = await fetch(`${API_URL || "http://localhost:4000"}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminUser, password: adminPass })
+      });
+      const resData = await res.json();
+      if (res.ok && resData.token) {
+        localStorage.setItem("auth_token", resData.token);
+        if (resData.user) {
+          localStorage.setItem("auth_user", JSON.stringify(resData.user));
+        }
         setIsAdminLoggedIn(true);
         setAdminMsg("Access Granted! Welcome to Admin Panel.");
+        await fetchNotifications();
         setTimeout(() => {
           setShowAdmin(false);
           setAdminMsg("");
         }, 1500);
-      }, 1000);
-    } else {
-      setAdminMsg("Please fill all fields.");
+      } else {
+        setAdminMsg(resData.message || "Invalid admin credentials! Please check inputs.");
+      }
+    } catch (err) {
+      // Offline fallback
+      if (adminUser.trim() === "admin@domain.com" && adminPass.trim() === "admin123") {
+        setIsAdminLoggedIn(true);
+        setAdminMsg("Access Granted (Demo Offline Mode)!");
+        setTimeout(() => {
+          setShowAdmin(false);
+          setAdminMsg("");
+        }, 1500);
+      } else {
+        setAdminMsg("Invalid admin credentials or connection error.");
+      }
     }
   };
 
@@ -5510,6 +6813,11 @@ const FloatingWidgets = ({ data, themeColor, isPreview = false }: { data: Portfo
                 </div>
                 <h3 className="text-base font-bold text-white">Administrator Login</h3>
                 <p className="text-xs text-slate-500 mt-1">Authenticate to open dashboard settings.</p>
+                <div className="mt-3 text-[10px] text-amber-500 bg-amber-500/5 border border-amber-500/20 p-2.5 rounded-lg font-mono leading-relaxed text-center w-full">
+                  Demo Credentials (Save this):<br/>
+                  User: <span className="font-bold text-amber-400">admin@domain.com</span><br/>
+                  Pass: <span className="font-bold text-amber-400">admin123</span>
+                </div>
               </div>
 
               {adminMsg && (
