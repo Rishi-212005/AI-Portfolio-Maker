@@ -1469,7 +1469,7 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
                 </button>
                 <button
                   onClick={() => {
-                    window.location.href = "/";
+                    window.location.href = "/dashboard";
                   }}
                   className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors border border-slate-700 text-center"
                 >
