@@ -1,51 +1,49 @@
 export interface PortfolioData {
   id?: string;
-  // Basic Info
   name: string;
   title: string;
   about: string;
-  photo?: string;          // base64 data-URL or hosted URL
+  photo?: string;
   email?: string;
   phone?: string;
   location?: string;
   website?: string;
-
-  // Professional
   skills: string[];
   projects: {
+    _id?: string;
     title: string;
     description: string;
     tags: string[];
     link: string;
     liveLink?: string;
-    imageUrl?: string;     // project preview image (base64 or URL)
+    imageUrl?: string;
   }[];
   experience: {
+    _id?: string;
     role: string;
     company: string;
     duration: string;
     description: string;
   }[];
   education: {
+    _id?: string;
     degree: string;
     school: string;
     year: string;
   }[];
-
-  // Extras
-  socialLinks: { platform: string; url: string }[];
+  socialLinks: { _id?: string; platform: string; url: string }[];
   certifications?: {
+    _id?: string;
     name: string;
     issuer: string;
     date: string;
-    imageUrl?: string;      // certificate image/badge (base64 or URL)
-    credentialUrl?: string; // verify link
+    imageUrl?: string;
+    credentialUrl?: string;
   }[];
   achievements?: string[];
-  languages?: { name: string; level: string }[];
-
-  // Custom Design Customize Settings
+  languages?: { _id?: string; name: string; level: string }[];
   designSettings?: {
+    _id?: string;
     themeMode?: "dark" | "light";
     accentColor?: string;
     animationsEnabled?: boolean;
@@ -54,121 +52,139 @@ export interface PortfolioData {
     opportunitiesText?: string;
     customCss?: string;
   };
+  templateId?: string;
+  sectionOrder?: string[];
 }
 
 export const defaultPortfolioData: PortfolioData = {
-  name: "Rishi",
-  title: "Full-Stack Developer & Cybersecurity Enthusiast",
-  about:
-    "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
-  email: "sairishikumarvedi@gmail.com",
-  phone: "+91 98765 43210",
-  location: "Ananthapuramu, Andhra Pradesh, India",
-  website: "https://rishi-212005.github.io/Personel-Portfolio/",
-  designSettings: {
-    themeMode: "dark",
-    accentColor: "hsl(190 95% 55%)",
-    animationsEnabled: true,
-    scanlinesEnabled: true,
-    showOpportunitiesBadge: true,
-    opportunitiesText: "AVAILABLE FOR OPPORTUNITIES",
-    customCss: ""
+  "id": "6a36901eb0d497b2bdbcecb8",
+  "name": "Aditya Ballari Nallari",
+  "title": "Aspiring AI and Data Science Engineer",
+  "about": "Aspiring AI and Data Science Engineer with foundamentals in Python, Machine Learning, and Data Analysis. Skilled in TensorFlow, Pandas, and Scikit-learn for building intelligent systems and extracting insights from data. Experienced in full-stack development and developing scalable, real-world applications using modern technologies. Passionate about solving real-world problems using data-driven approaches.",
+  "photo": "",
+  "email": "adityabn24@gmail.com",
+  "phone": "+91 9502849549",
+  "location": "",
+  "website": "",
+  "skills": [
+    "Java",
+    "Python",
+    "SQL",
+    "HTML",
+    "CSS",
+    "TensorFlow",
+    "Pandas",
+    "NumPy",
+    "Scikit-learn",
+    "Matplotlib",
+    "React",
+    "Spring Boot",
+    "MongoDB",
+    "MySQL",
+    "Oracle XE",
+    "REST APIs",
+    "JWT Authentication",
+    "Flyway Migrations",
+    "Data Science",
+    "Machine Learning",
+    "Artificial Intelligence",
+    "Full-Stack Development"
+  ],
+  "projects": [
+    {
+      "title": "Data Science Assistant using Generative AI",
+      "description": "Developed an AI-powered assistant to automate end-to-end data science workflows including data cleaning, analysis, visualization, and model generation. Integrated Generative AI models to generate insights, Python code, statistical summaries, and predictive models from natural language inputs. Implemented natural language processing to interpret both technical and non-technical queries and generate context-aware outputs. Automated exploratory data analysis (EDA) including missing value detection, correlation analysis, and feature importance identification. Generated dynamic visualizations using Matplotlib to improve interpretability of datasets and model outputs.",
+      "tags": [
+        "Generative AI",
+        "Natural Language Processing",
+        "Data Science",
+        "Matplotlib",
+        "Python"
+      ],
+      "link": "",
+      "liveLink": "",
+      "imageUrl": "",
+      "_id": "6a3a82df52a4a535e8752683"
+    },
+    {
+      "title": "Helmet Detection System for Motorcycle Safety Enforcement",
+      "description": "Developed a computer vision-based system to automatically detect helmet usage in images for road and workplace safety compliance. Built a preprocessing pipeline to extract Regions of Interest (ROI) from XML-annotated datasets, resize images, and convert them into grayscale feature vectors. Trained a Random Forest Classifier on structured image features to classify helmet vs non-helmet cases. Designed and implemented an interactive Tkinter GUI for dataset upload, preprocessing, model training, and real-time prediction. Displayed prediction outputs with confidence scores to enhance interpretability and user trust.",
+      "tags": [
+        "Computer Vision",
+        "Random Forest Classifier",
+        "Tkinter",
+        "Python"
+      ],
+      "link": "",
+      "liveLink": "",
+      "imageUrl": "",
+      "_id": "6a3a82df52a4a535e8752684"
+    }
+  ],
+  "experience": [
+    {
+      "role": "Software Development Intern",
+      "company": "DRDL, DRDO (Government of India)",
+      "duration": "Jan 2026 – Mar 2026",
+      "description": "Designed and developed a full-stack GPF Loan Management System to digitize General Provident Fund operations, eliminating manual paperwork. Built scalable backend services using Spring Boot and integrated RESTful APIs for seamless communi- cation between frontend and backend. Developed responsive UI using React, improving usability and accessibility for internal users. Implemented secure authentication and authorization using JWT, ensuring role-based access control. Applied Flyway migrations for version-controlled database schema management. Collaborated with team members in an agile environment to deliver features within deadlines. Tech Stack: React, Spring Boot, Oracle XE, JWT, REST API, Flyway",
+      "_id": "6a3a82df52a4a535e8752682"
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Technology (Artificial Intelligence Data Science Engineering)",
+      "school": "JNTUH",
+      "year": "2022 – 2026",
+      "_id": "6a3a82df52a4a535e875267f"
+    },
+    {
+      "degree": "Intermediate",
+      "school": "",
+      "year": "2020 – 2022",
+      "_id": "6a3a82df52a4a535e8752680"
+    },
+    {
+      "degree": "SSC",
+      "school": "",
+      "year": "2020",
+      "_id": "6a3a82df52a4a535e8752681"
+    }
+  ],
+  "socialLinks": [
+    {
+      "platform": "GitHub",
+      "url": "",
+      "_id": "6a3a82df52a4a535e875267d"
+    },
+    {
+      "platform": "LinkedIn",
+      "url": "",
+      "_id": "6a3a82df52a4a535e875267e"
+    }
+  ],
+  "certifications": [],
+  "achievements": [],
+  "languages": [],
+  "designSettings": {
+    "themeMode": "dark",
+    "accentColor": "hsl(190 95% 55%)",
+    "animationsEnabled": true,
+    "scanlinesEnabled": true,
+    "showOpportunitiesBadge": true,
+    "opportunitiesText": "AVAILABLE FOR OPPORTUNITIES",
+    "customCss": "",
+    "_id": "6a3a82df52a4a535e875267c"
   },
-  skills: [
-    "React", "TypeScript", "JavaScript",
-    "Node.js", "Express", "PHP", "Python",
-    "MySQL", "MongoDB",
-    "TailwindCSS", "Git", "Linux",
-  ],
-  projects: [
-    {
-      title: "Academia Authenticator",
-      description:
-        "An AI-powered academic verification system with OCR data extraction and secure credential parsing. Reduces manual verification time by 80%.",
-      tags: ["Python", "OCR", "FastAPI", "MongoDB"],
-      link: "https://github.com/Rishi-212005/Academia-Authenticator",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-    {
-      title: "AI Raw Material Marketplace",
-      description:
-        "A secure B2B full-stack marketplace connecting manufacturers with verified raw material suppliers using AI-driven matching.",
-      tags: ["React", "Node.js", "Express", "MySQL"],
-      link: "https://github.com/Rishi-212005/AI-Marketplace",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-    {
-      title: "InternConnect Campus Portal",
-      description:
-        "A centralized platform to streamline internship application workflows, evaluations, and certifications for 500+ students.",
-      tags: ["PHP", "MySQL", "Bootstrap", "JS"],
-      link: "https://github.com/Rishi-212005/InternConnect",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-  ],
-  experience: [
-    {
-      role: "Software Engineer Intern",
-      company: "National Informatics Centre (NIC)",
-      duration: "May 2025 – Jul 2025",
-      description:
-        "Designed e-governance system workflows, implemented RBAC authentication modules, and optimized secure backend queries in PHP/MySQL. Collaborated with senior engineers on production-grade government portals.",
-    },
-  ],
-  education: [
-    {
-      degree: "B.Tech Computer Science & Engineering",
-      school: "JNTU Anantapur",
-      year: "2023 – 2027",
-    },
-    {
-      degree: "Intermediate – MPC (Science)",
-      school: "Narayana Junior College",
-      year: "2021 – 2023",
-    },
-  ],
-  socialLinks: [
-    { platform: "GitHub", url: "https://github.com/Rishi-212005" },
-    { platform: "LinkedIn", url: "https://linkedin.com/in/sairishikumarvedi" },
-    { platform: "Twitter", url: "https://twitter.com" },
-  ],
-  certifications: [
-    {
-      name: "NIC e-Governance Internship Certificate",
-      issuer: "National Informatics Centre",
-      date: "July 2025",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-    {
-      name: "Cybersecurity Fundamentals",
-      issuer: "Infosys Springboard",
-      date: "November 2024",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-    {
-      name: "Responsive Web Design",
-      issuer: "freeCodeCamp",
-      date: "August 2024",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-  ],
-  achievements: [
-    "🏆 Top performer in JNTU Hackathon 2024 – secured 2nd place among 120 teams",
-    "📜 Completed NIC e-Governance internship with distinction",
-    "🎯 Built 3 full-stack projects used by 500+ real users",
-    "🔒 Completed Ethical Hacking course with hands-on CTF challenges",
-  ],
-  languages: [
-    { name: "Telugu", level: "Native" },
-    { name: "English", level: "Professional" },
-    { name: "Hindi", level: "Conversational" },
-  ],
+  "templateId": "retro-terminal",
+  "sectionOrder": [
+    "about",
+    "skills",
+    "projects",
+    "experience",
+    "education",
+    "certifications",
+    "contact"
+  ]
 };
 
 export const templateList = [
