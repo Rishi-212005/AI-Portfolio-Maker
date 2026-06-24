@@ -81,6 +81,97 @@ const getApiUrl = () => {
 };
 const API_URL = getApiUrl();
 
+interface SkillCategory {
+  label: string;
+  skills: string[];
+}
+
+const getSkillCategories = (skills: string[]): SkillCategory[] => {
+  const categoryMap: Record<string, string[]> = {
+    "Frontend": [],
+    "Backend": [],
+    "AI/ML": [],
+    "Tools": [],
+    "Others": []
+  };
+
+  const cleanSkills = (skills || []).map(s => s ? s.trim() : "").filter(Boolean);
+  const hasPrefix = cleanSkills.some(s => s.includes(":"));
+
+  if (hasPrefix) {
+    cleanSkills.forEach(s => {
+      if (s.includes(":")) {
+        const parts = s.split(":");
+        const cat = parts[0].trim();
+        const skill = parts.slice(1).join(":").trim();
+        
+        let targetCat = "Others";
+        const catLower = cat.toLowerCase();
+        if (catLower.includes("frontend") || catLower.includes("front end") || catLower.includes("front-end") || catLower.includes("web dev") || catLower.includes("webdev")) {
+          targetCat = "Frontend";
+        } else if (catLower.includes("backend") || catLower.includes("back end") || catLower.includes("back-end") || catLower.includes("database") || catLower.includes("db") || catLower.includes("sql")) {
+          targetCat = "Backend";
+        } else if (catLower.includes("ai") || catLower.includes("ml") || catLower.includes("aiml") || catLower.includes("machine") || catLower.includes("deep") || catLower.includes("learning") || catLower.includes("vision") || catLower.includes("nlp")) {
+          targetCat = "AI/ML";
+        } else if (catLower.includes("tool") || catLower.includes("devops") || catLower.includes("git") || catLower.includes("platform") || catLower.includes("cloud")) {
+          targetCat = "Tools";
+        }
+
+        if (!categoryMap[targetCat]) {
+          categoryMap[targetCat] = [];
+        }
+        categoryMap[targetCat].push(skill);
+      } else {
+        categoryMap["Others"].push(s);
+      }
+    });
+  } else {
+    // Dynamic fallback auto-categorizer
+    const frontendKeywords = [
+      "react", "typescript", "javascript", "tailwind", "next", "vue", "html", "css", "svelte", 
+      "vite", "bootstrap", "sass", "less", "jquery", "webflow", "frontend", "ui", "ux", "redux"
+    ];
+    const backendKeywords = [
+      "node", "express", "php", "fastapi", "django", "java", "go", "rust", "python", "flask", 
+      "laravel", "mysql", "mongodb", "postgres", "redis", "aws", "firebase", "docker", "kubernetes", 
+      "supabase", "sql", "sqlite", "oracle", "database", "backend", "graphql", "rest api", "apis"
+    ];
+    const aiKeywords = [
+      "machine learning", "deep learning", "computer vision", "natural language processing", "nlp", 
+      "tensorflow", "pytorch", "keras", "scikit-learn", "tf-idf", "ocr", "model training", 
+      "feature engineering", "data preprocessing", "tuning", "efficientnet", "llm", "opencv", 
+      "langchain", "ai", "ml", "neural network", "grading"
+    ];
+    const toolsKeywords = [
+      "git", "linux", "vs code", "figma", "postman", "github", "bash", "jira", "agile", "devops", 
+      "ci/cd", "shell", "vscode"
+    ];
+
+    cleanSkills.forEach(s => {
+      const lower = s.toLowerCase();
+      if (aiKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["AI/ML"].push(s);
+      } else if (frontendKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Frontend"].push(s);
+      } else if (backendKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Backend"].push(s);
+      } else if (toolsKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Tools"].push(s);
+      } else {
+        categoryMap["Others"].push(s);
+      }
+    });
+  }
+
+  return [
+    { label: "Frontend Development", skills: categoryMap["Frontend"] },
+    { label: "Backend & Databases", skills: categoryMap["Backend"] },
+    { label: "AI & Machine Learning", skills: categoryMap["AI/ML"] },
+    { label: "Tools & DevOps", skills: categoryMap["Tools"] },
+    { label: "Other Skills", skills: categoryMap["Others"] }
+  ].filter(c => c.skills.length > 0);
+};
+
 /* ====== ACCORDION ITEM FOR MOBILE SECTION COLLAPSE ====== */
 const MobileAccordionItem = ({
   sectionId,
@@ -168,6 +259,14 @@ const VisualAccordionItem = ({
 };
 
 /* ====== VISUAL EDITOR SIDE DRAWER ====== */
+const EDIT_CATEGORIES = [
+  { label: "Frontend Development", prefix: "Frontend Development" },
+  { label: "Backend & Databases", prefix: "Backend & Databases" },
+  { label: "AI & Machine Learning", prefix: "AI & Machine Learning" },
+  { label: "Tools & DevOps", prefix: "Tools & DevOps" },
+  { label: "Other Skills", prefix: "Other Skills" }
+];
+
 const VisualEditorDrawer = ({
   data,
   onChange,
@@ -182,8 +281,9 @@ const VisualEditorDrawer = ({
   themeColor: string;
 }) => {
   const [activeSec, setActiveSec] = useState<string>("about");
-  const [newSkill, setNewSkill] = useState("");
   const [newAch, setNewAch] = useState("");
+  const [activeCatEdit, setActiveCatEdit] = useState<string | null>("Frontend Development");
+  const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
   
   const [expandedProj, setExpandedProj] = useState<number | null>(0);
   const [expandedExp, setExpandedExp] = useState<number | null>(0);
@@ -232,13 +332,6 @@ const VisualEditorDrawer = ({
       }
       return { ...prev, socialLinks };
     });
-  };
-
-  const handleAddSkill = () => {
-    if (newSkill.trim() && !data.skills.includes(newSkill.trim())) {
-      onChange(prev => ({ ...prev, skills: [...prev.skills, newSkill.trim()] }));
-      setNewSkill("");
-    }
   };
 
   const handleProjectChange = (idx: number, field: string, val: string) => {
@@ -568,35 +661,88 @@ const VisualEditorDrawer = ({
           onToggle={() => setActiveSec(activeSec === "skills" ? "" : "skills")}
         >
           <div className="space-y-3 px-1">
-            <div className="flex flex-wrap gap-1">
-              {data.skills.map((s, idx) => (
-                <span key={idx} className="inline-flex items-center gap-1 bg-slate-950 text-slate-300 text-[10px] px-2 py-0.5 rounded border border-slate-850">
-                  <span>{s}</span>
-                  <button
-                    onClick={() => onChange(prev => ({ ...prev, skills: prev.skills.filter((_, i) => i !== idx) }))}
-                    className="text-slate-500 hover:text-red-400"
+            {EDIT_CATEGORIES.map((cat) => {
+              const isExpanded = activeCatEdit === cat.label;
+              const catSkills = getSkillCategories(data.skills).find(c => c.label === cat.label)?.skills || [];
+              const inputValue = categoryInputs[cat.label] || "";
+
+              const handleAddSkillToCat = () => {
+                if (inputValue.trim()) {
+                  const prefixedSkill = `${cat.prefix}:${inputValue.trim()}`;
+                  if (!data.skills.includes(prefixedSkill)) {
+                    onChange(prev => ({
+                      ...prev,
+                      skills: [...prev.skills, prefixedSkill]
+                    }));
+                  }
+                  setCategoryInputs(prev => ({ ...prev, [cat.label]: "" }));
+                }
+              };
+
+              return (
+                <div key={cat.label} className="border border-slate-850 rounded-lg overflow-hidden bg-slate-950/40">
+                  <div
+                    onClick={() => setActiveCatEdit(isExpanded ? null : cat.label)}
+                    className="flex items-center justify-between p-2.5 cursor-pointer bg-slate-900/40 hover:bg-slate-850/40 select-none"
                   >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-1.5 pt-1.5">
-              <input
-                type="text"
-                placeholder="React"
-                value={newSkill}
-                onChange={e => setNewSkill(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddSkill(); } }}
-                className={inputStyle}
-              />
-              <button
-                onClick={handleAddSkill}
-                className="bg-slate-800 hover:bg-slate-750 border border-slate-700 px-3 py-1.5 rounded text-xs font-semibold text-white"
-              >
-                Add
-              </button>
-            </div>
+                    <span className="text-[11px] font-bold text-slate-350">{cat.label}</span>
+                    <span className="text-[10px] text-slate-500">{catSkills.length} skills</span>
+                  </div>
+                  {isExpanded && (
+                    <div className="p-2.5 border-t border-slate-850 space-y-3 bg-slate-900/10">
+                      <div className="flex flex-wrap gap-1">
+                        {catSkills.length === 0 ? (
+                          <span className="text-[10px] text-slate-500 italic">No skills in this category.</span>
+                        ) : (
+                          catSkills.map((s, idx) => (
+                            <span key={idx} className="inline-flex items-center gap-1 bg-slate-950 text-slate-300 text-[10px] px-2 py-0.5 rounded border border-slate-850">
+                              <span>{s}</span>
+                              <button
+                                onClick={() => {
+                                  onChange(prev => ({
+                                    ...prev,
+                                    skills: prev.skills.filter(raw => {
+                                      const parts = raw.split(":");
+                                      const skillName = parts.length > 1 ? parts.slice(1).join(":").trim() : raw.trim();
+                                      const rawCat = getSkillCategories([raw])[0]?.label;
+                                      return !(skillName === s && rawCat === cat.label);
+                                    })
+                                  }));
+                                }}
+                                className="text-slate-500 hover:text-red-400"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <div className="flex gap-1.5 pt-1">
+                        <input
+                          type="text"
+                          placeholder={`Add ${cat.label.split(" ")[0]} skill...`}
+                          value={inputValue}
+                          onChange={e => setCategoryInputs(prev => ({ ...prev, [cat.label]: e.target.value }))}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddSkillToCat();
+                            }
+                          }}
+                          className={inputStyle}
+                        />
+                        <button
+                          onClick={handleAddSkillToCat}
+                          className="bg-slate-800 hover:bg-slate-750 border border-slate-700 px-3 py-1.5 rounded text-xs font-semibold text-white"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </VisualAccordionItem>
 
@@ -1919,8 +2065,8 @@ const TechMinimalist = ({
   const muted = isDark ? "text-slate-400" : "text-slate-600";
 
   const sectionVariants = {
-    hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
+    hidden: { opacity: 0, y: 30, scale: 0.98 },
+    visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.7, ease: "easeOut" as const } },
   };
 
   const containerVariants = {
@@ -1941,29 +2087,7 @@ const TechMinimalist = ({
     }
   };
 
-  // Skill categories
-  const frontendSkills = data.skills.filter(s =>
-    ["React", "TypeScript", "JavaScript", "TailwindCSS", "Next.js", "Vue", "HTML", "CSS", "Svelte", "Vite"].includes(s)
-  );
-  const backendSkills = data.skills.filter(s =>
-    ["Node.js", "Express", "Python", "PHP", "FastAPI", "Django", "Java", "Go", "Rust"].includes(s)
-  );
-  const dataSkills = data.skills.filter(s =>
-    ["MySQL", "MongoDB", "PostgreSQL", "Redis", "AWS", "Firebase", "Docker", "Kubernetes", "Supabase"].includes(s)
-  );
-  const toolsSkills = data.skills.filter(s =>
-    ["Git", "Linux", "VS Code", "Figma", "Postman", "GitHub", "Bash", "Jira"].includes(s)
-  );
-  const categorized = [...frontendSkills, ...backendSkills, ...dataSkills, ...toolsSkills];
-  const otherSkills = data.skills.filter(s => !categorized.includes(s));
-
-  const skillCategories = [
-    { label: "Frontend", skills: frontendSkills },
-    { label: "Backend", skills: backendSkills },
-    { label: "Data & Cloud", skills: dataSkills },
-    { label: "Tools", skills: toolsSkills },
-    ...(otherSkills.length > 0 ? [{ label: "Other", skills: otherSkills }] : []),
-  ].filter(c => c.skills.length > 0);
+  const skillCategories = getSkillCategories(data.skills);
 
   const sections = sectionOrder;
 
@@ -2785,7 +2909,10 @@ ${data.about}
           developer: data.name,
           title: data.title,
           status: "Fully loaded",
-          skills: data.skills || []
+          skills: getSkillCategories(data.skills).reduce((acc, cat) => {
+            acc[cat.label] = cat.skills;
+            return acc;
+          }, {} as Record<string, string[]>)
         }, null, 2)
       },
       "projects.json": {
@@ -3497,20 +3624,27 @@ const GlassAurora = ({
                   className={`backdrop-blur-xl border p-8 rounded-3xl shadow-lg space-y-4 scroll-mt-24 transition-colors duration-300 ${isDark ? "bg-slate-900/20 border-slate-700/10" : "bg-white/50 border-slate-200"}`}
                 >
                   <h2 className="text-xs font-bold uppercase tracking-widest font-mono" style={{ color: themeColor }}>Expertise</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {data.skills.map((s, si) => (
-                      <motion.span 
-                        key={s} 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: si * 0.03 }}
-                        whileHover={{ scale: 1.05 }}
-                        className={`rounded-full px-4 py-2 text-xs border shadow-inner transition-colors duration-200 ${isDark ? "bg-slate-800/40 border-purple-500/10 hover:border-cyan-500/30" : "bg-white border-slate-200 hover:border-slate-300"}`}
-                        style={{ color: themeColor }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat, ci) => (
+                      <div key={cat.label} className="space-y-2 text-left">
+                        <h3 className={`text-[10px] uppercase tracking-wider font-semibold font-mono ${isDark ? "text-slate-400" : "text-slate-500"}`}>{cat.label}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {cat.skills.map((s, si) => (
+                            <motion.span 
+                              key={`${s}-${si}`}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              whileInView={{ opacity: 1, scale: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: (ci * 5 + si) * 0.02 }}
+                              whileHover={{ scale: 1.05 }}
+                              className={`rounded-full px-4 py-2 text-xs border shadow-inner transition-colors duration-200 ${isDark ? "bg-slate-800/40 border-purple-500/10 hover:border-cyan-500/30" : "bg-white border-slate-200 hover:border-slate-300"}`}
+                              style={{ color: themeColor }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.div>
@@ -3975,19 +4109,26 @@ const CyberpunkGlitch = ({
                   className="space-y-4 scroll-mt-24"
                 >
                   <h2 className="font-black uppercase tracking-[0.2em] text-xs" style={{ color: themeColor }}>// SKILL_CHIPS</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {data.skills.map((s, si) => (
-                      <motion.span 
-                        key={s} 
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: si * 0.03 }}
-                        className={`border px-3 py-1.5 text-xs transition-all select-none hover:translate-y-[-1px] ${isDark ? "bg-zinc-900/10 border-zinc-800 text-zinc-400 hover:bg-zinc-900/30 hover:border-zinc-700" : "bg-white border-zinc-250 text-zinc-650 hover:bg-zinc-50"}`}
-                        style={{ color: themeColor }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat, ci) => (
+                      <div key={cat.label} className="space-y-2 text-left">
+                        <h3 className={`text-[10px] uppercase font-bold tracking-widest font-mono ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>&gt; {cat.label.toUpperCase()}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {cat.skills.map((s, si) => (
+                            <motion.span 
+                              key={`${s}-${si}`}
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              whileInView={{ opacity: 1, scale: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: (ci * 5 + si) * 0.02 }}
+                              className={`border px-3 py-1.5 text-xs transition-all select-none hover:translate-y-[-1px] ${isDark ? "bg-zinc-900/10 border-zinc-800 text-zinc-400 hover:bg-zinc-900/30 hover:border-zinc-700" : "bg-white border-zinc-250 text-zinc-650 hover:bg-zinc-50"}`}
+                              style={{ color: themeColor }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -4449,20 +4590,27 @@ const NeobrutalistBold = ({
                   className="space-y-4 scroll-mt-24"
                 >
                   <h2 className={`text-2xl font-black uppercase border-b-4 border-black pb-2 ${isDark ? "text-white" : "text-black"}`}>CAPABILITIES</h2>
-                  <div className="flex flex-wrap gap-2.5">
-                    {data.skills.map((s, si) => (
-                      <motion.span 
-                        key={s} 
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ type: "spring", stiffness: 120, damping: 10, delay: si * 0.03 }}
-                        whileHover={{ scale: 1.05 }}
-                        className="border-2 border-black px-4 py-2 text-xs font-black shadow-[3px_3px_0px_#000] hover:bg-opacity-80 transition-colors uppercase"
-                        style={{ backgroundColor: themeColor, color: isDark ? "#000000" : "#ffffff" }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat, ci) => (
+                      <div key={cat.label} className="space-y-3 text-left">
+                        <h3 className={`text-sm font-black uppercase tracking-wider ${isDark ? "text-slate-350" : "text-black"}`}>{cat.label}</h3>
+                        <div className="flex flex-wrap gap-2.5">
+                          {cat.skills.map((s, si) => (
+                            <motion.span 
+                              key={`${s}-${si}`}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              whileInView={{ opacity: 1, scale: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ type: "spring", stiffness: 120, damping: 10, delay: (ci * 5 + si) * 0.02 }}
+                              whileHover={{ scale: 1.05 }}
+                              className="border-2 border-black px-4 py-2 text-xs font-black shadow-[3px_3px_0px_#000] hover:bg-opacity-80 transition-colors uppercase"
+                              style={{ backgroundColor: themeColor, color: isDark ? "#000000" : "#ffffff" }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -4887,19 +5035,26 @@ const ElegantEditorial = ({
                   className="text-center space-y-4 scroll-mt-24"
                 >
                   <h2 className="text-xs font-bold uppercase tracking-[0.25em] mb-4 font-sans opacity-60">Expertise</h2>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {data.skills.map((s, si) => (
-                      <motion.span 
-                        key={s} 
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ delay: si * 0.03 }}
-                        className="text-stone-700 italic text-sm tracking-wide border border-stone-300/40 rounded-full px-4 py-1.5 bg-[#faf9f6]/10 hover:opacity-80 transition-opacity"
-                        style={{ color: themeColor }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat, ci) => (
+                      <div key={cat.label} className="space-y-2 text-center">
+                        <h3 className={`text-[10px] uppercase tracking-wider font-semibold opacity-60 font-sans`}>{cat.label}</h3>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          {cat.skills.map((s, si) => (
+                            <motion.span 
+                              key={`${s}-${si}`}
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              whileInView={{ opacity: 1, scale: 1 }}
+                              viewport={{ once: true }}
+                              transition={{ delay: (ci * 5 + si) * 0.02 }}
+                              className="text-stone-700 italic text-sm tracking-wide border border-stone-300/40 rounded-full px-4 py-1.5 bg-[#faf9f6]/10 hover:opacity-80 transition-opacity"
+                              style={{ color: themeColor }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -5322,16 +5477,23 @@ const GradientSpotlight = ({
               return (
                 <motion.section id="skills" key="skills" className="space-y-4 scroll-mt-24" variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
                   <h2 className="uppercase tracking-widest text-xs font-bold font-mono" style={{ color: themeColor }}>// TOOL INVENTORY</h2>
-                  <div className="flex flex-wrap gap-2.5">
-                    {data.skills.map((s) => (
-                      <motion.span
-                        key={s}
-                        whileHover={{ scale: 1.05, y: -2, borderColor: themeColor }}
-                        className={`rounded-xl border px-4 py-2.5 text-xs font-medium shadow-md transition-all ${isDark ? "bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:border-zinc-700" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300 shadow-sm"}`}
-                        style={{ borderBottomColor: `${themeColor}40` }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat) => (
+                      <div key={cat.label} className="space-y-2.5 text-left">
+                        <h3 className={`text-[10px] uppercase font-bold tracking-widest font-mono ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>{cat.label}</h3>
+                        <div className="flex flex-wrap gap-2.5">
+                          {cat.skills.map((s) => (
+                            <motion.span
+                              key={s}
+                              whileHover={{ scale: 1.05, y: -2, borderColor: themeColor }}
+                              className={`rounded-xl border px-4 py-2.5 text-xs font-medium shadow-md transition-all ${isDark ? "bg-zinc-900/40 border-zinc-800 text-zinc-300 hover:border-zinc-700" : "bg-white border-zinc-200 text-zinc-700 hover:border-zinc-300 shadow-sm"}`}
+                              style={{ borderBottomColor: `${themeColor}40` }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -5658,11 +5820,18 @@ const InteractiveTimeline = ({
                 <motion.section id="skills" key="skills" className="space-y-4 relative" variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
                   <div className="absolute -left-[30px] md:-left-[46px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-xs" style={{ backgroundColor: themeColor, borderColor: themeColor }} />
                   <h2 className="text-base font-bold uppercase tracking-wider" style={{ color: themeColor }}>Skill Mapping</h2>
-                  <div className="flex flex-wrap gap-2.5">
-                    {data.skills.map((s) => (
-                      <span key={s} className="rounded-full border px-4 py-1.5 text-xs font-semibold hover:scale-105 transition-transform" style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}08` }}>
-                        {s}
-                      </span>
+                  <div className="space-y-6 text-left">
+                    {getSkillCategories(data.skills).map((cat) => (
+                      <div key={cat.label} className="space-y-2">
+                        <h3 className={`text-xs font-semibold uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-600"}`}>{cat.label}</h3>
+                        <div className="flex flex-wrap gap-2.5">
+                          {cat.skills.map((s) => (
+                            <span key={s} className="rounded-full border px-4 py-1.5 text-xs font-semibold hover:scale-105 transition-transform inline-block" style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: `${themeColor}08` }}>
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -6002,16 +6171,23 @@ const CardDeck = ({
               return (
                 <motion.section id="skills" key="skills" className={`border p-6 rounded-2xl shadow-lg ${cardBg}`} variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true }}>
                   <h2 className="text-xs font-bold uppercase tracking-wider mb-4 border-b pb-2" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>Skills Inventory</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {data.skills.map((s) => (
-                      <motion.span
-                        key={s}
-                        whileHover={{ scale: 1.06, borderColor: themeColor }}
-                        className={`rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-inner border transition-all ${isDark ? "bg-slate-900/60 text-slate-350 border-slate-800/40" : "bg-slate-50 text-slate-700 border-slate-200"}`}
-                        style={{ color: themeColor }}
-                      >
-                        {s}
-                      </motion.span>
+                  <div className="space-y-6">
+                    {getSkillCategories(data.skills).map((cat) => (
+                      <div key={cat.label} className="space-y-2.5 text-left">
+                        <h3 className={`text-[10px] uppercase font-bold tracking-wider ${isDark ? "text-slate-500" : "text-slate-400"}`}>{cat.label}</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {cat.skills.map((s) => (
+                            <motion.span
+                              key={s}
+                              whileHover={{ scale: 1.06, borderColor: themeColor }}
+                              className={`rounded-md px-3.5 py-1.5 text-xs font-semibold shadow-inner border transition-all ${isDark ? "bg-slate-900/60 text-slate-350 border-slate-800/40" : "bg-slate-50 text-slate-700 border-slate-200"}`}
+                              style={{ color: themeColor }}
+                            >
+                              {s}
+                            </motion.span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </motion.section>
@@ -6286,31 +6462,37 @@ const DashboardSaas = ({
         );
       case "skills":
         return (
-          <div className="space-y-6">
-            <div className="text-xs font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#64748b" : "#94a3b8" }}>// Stack Packages & Core Engine Nodes</div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {data.skills.map((s, idx) => {
-                const percentage = 75 + (idx * 7) % 25;
-                const barFilled = Math.round(percentage / 10);
-                const barStr = "█".repeat(barFilled) + "░".repeat(10 - barFilled);
-                return (
-                  <motion.div
-                    key={s}
-                    whileHover={{ scale: 1.02, borderColor: themeColor }}
-                    className={`p-4 rounded-xl font-mono text-xs flex flex-col justify-between transition-all border ${isDark ? "bg-slate-900 border-slate-850 hover:border-slate-800" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{s}</span>
-                      <span style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{percentage}% Capacity</span>
-                    </div>
-                    <div className="text-[10px] tracking-wider font-semibold font-mono flex items-center gap-2">
-                      <span style={{ color: themeColor }}>[{barStr}]</span>
-                      <span style={{ color: isDark ? "#475569" : "#94a3b8" }}>v1.{(idx * 2) % 10}.{(idx * 3) % 9}</span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+          <div className="space-y-8">
+            {getSkillCategories(data.skills).map((cat, ci) => (
+              <div key={cat.label} className="space-y-3">
+                <div className="text-[10px] font-mono tracking-widest uppercase mb-1" style={{ color: isDark ? "#475569" : "#94a3b8" }}>
+                  {`// ${cat.label.toUpperCase()}`}
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {cat.skills.map((s, idx) => {
+                    const percentage = 75 + ((ci * 7 + idx) * 7) % 25;
+                    const barFilled = Math.round(percentage / 10);
+                    const barStr = "█".repeat(barFilled) + "░".repeat(10 - barFilled);
+                    return (
+                      <motion.div
+                        key={`${s}-${idx}`}
+                        whileHover={{ scale: 1.02, borderColor: themeColor }}
+                        className={`p-4 rounded-xl font-mono text-xs flex flex-col justify-between transition-all border ${isDark ? "bg-slate-900 border-slate-850 hover:border-slate-800" : "bg-white border-slate-200 hover:border-slate-300 shadow-sm"}`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold" style={{ color: isDark ? "#e2e8f0" : "#0f172a" }}>{s}</span>
+                          <span style={{ color: isDark ? "#64748b" : "#94a3b8" }}>{percentage}% Capacity</span>
+                        </div>
+                        <div className="text-[10px] tracking-wider font-semibold font-mono flex items-center gap-2">
+                          <span style={{ color: themeColor }}>[{barStr}]</span>
+                          <span style={{ color: isDark ? "#475569" : "#94a3b8" }}>v1.{((ci * 5 + idx) * 2) % 10}.{((ci * 3 + idx) * 3) % 9}</span>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         );
       case "projects":

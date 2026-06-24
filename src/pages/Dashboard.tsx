@@ -430,6 +430,97 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file);
   });
 
+interface SkillCategory {
+  label: string;
+  skills: string[];
+}
+
+const getSkillCategories = (skills: string[]): SkillCategory[] => {
+  const categoryMap: Record<string, string[]> = {
+    "Frontend": [],
+    "Backend": [],
+    "AI/ML": [],
+    "Tools": [],
+    "Others": []
+  };
+
+  const cleanSkills = (skills || []).map(s => s ? s.trim() : "").filter(Boolean);
+  const hasPrefix = cleanSkills.some(s => s.includes(":"));
+
+  if (hasPrefix) {
+    cleanSkills.forEach(s => {
+      if (s.includes(":")) {
+        const parts = s.split(":");
+        const cat = parts[0].trim();
+        const skill = parts.slice(1).join(":").trim();
+        
+        let targetCat = "Others";
+        const catLower = cat.toLowerCase();
+        if (catLower.includes("frontend") || catLower.includes("front end") || catLower.includes("front-end") || catLower.includes("web dev") || catLower.includes("webdev")) {
+          targetCat = "Frontend";
+        } else if (catLower.includes("backend") || catLower.includes("back end") || catLower.includes("back-end") || catLower.includes("database") || catLower.includes("db") || catLower.includes("sql")) {
+          targetCat = "Backend";
+        } else if (catLower.includes("ai") || catLower.includes("ml") || catLower.includes("aiml") || catLower.includes("machine") || catLower.includes("deep") || catLower.includes("learning") || catLower.includes("vision") || catLower.includes("nlp")) {
+          targetCat = "AI/ML";
+        } else if (catLower.includes("tool") || catLower.includes("devops") || catLower.includes("git") || catLower.includes("platform") || catLower.includes("cloud")) {
+          targetCat = "Tools";
+        }
+
+        if (!categoryMap[targetCat]) {
+          categoryMap[targetCat] = [];
+        }
+        categoryMap[targetCat].push(skill);
+      } else {
+        categoryMap["Others"].push(s);
+      }
+    });
+  } else {
+    // Dynamic fallback auto-categorizer
+    const frontendKeywords = [
+      "react", "typescript", "javascript", "tailwind", "next", "vue", "html", "css", "svelte", 
+      "vite", "bootstrap", "sass", "less", "jquery", "webflow", "frontend", "ui", "ux", "redux"
+    ];
+    const backendKeywords = [
+      "node", "express", "php", "fastapi", "django", "java", "go", "rust", "python", "flask", 
+      "laravel", "mysql", "mongodb", "postgres", "redis", "aws", "firebase", "docker", "kubernetes", 
+      "supabase", "sql", "sqlite", "oracle", "database", "backend", "graphql", "rest api", "apis"
+    ];
+    const aiKeywords = [
+      "machine learning", "deep learning", "computer vision", "natural language processing", "nlp", 
+      "tensorflow", "pytorch", "keras", "scikit-learn", "tf-idf", "ocr", "model training", 
+      "feature engineering", "data preprocessing", "tuning", "efficientnet", "llm", "opencv", 
+      "langchain", "ai", "ml", "neural network", "grading"
+    ];
+    const toolsKeywords = [
+      "git", "linux", "vs code", "figma", "postman", "github", "bash", "jira", "agile", "devops", 
+      "ci/cd", "shell", "vscode"
+    ];
+
+    cleanSkills.forEach(s => {
+      const lower = s.toLowerCase();
+      if (aiKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["AI/ML"].push(s);
+      } else if (frontendKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Frontend"].push(s);
+      } else if (backendKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Backend"].push(s);
+      } else if (toolsKeywords.some(kw => lower.includes(kw))) {
+        categoryMap["Tools"].push(s);
+      } else {
+        categoryMap["Others"].push(s);
+      }
+    });
+  }
+
+  return [
+    { label: "Frontend Development", skills: categoryMap["Frontend"] },
+    { label: "Backend & Databases", skills: categoryMap["Backend"] },
+    { label: "AI & Machine Learning", skills: categoryMap["AI/ML"] },
+    { label: "Tools & DevOps", skills: categoryMap["Tools"] },
+    { label: "Other Skills", skills: categoryMap["Others"] }
+  ].filter(c => c.skills.length > 0);
+};
+
 /* ── Dynamic PDF.js loader ── */
 interface PdfJsLib {
   getDocument: (params: { data: ArrayBuffer }) => { promise: Promise<{ numPages: number; getPage: (i: number) => Promise<{ getTextContent: () => Promise<{ items: { str: string }[] }> }> }> };
@@ -546,6 +637,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<PortfolioData>(defaultPortfolioData);
   const [skillInput, setSkillInput] = useState("");
+  const [skillCategory, setSkillCategory] = useState("Frontend Development");
   const [achievementInput, setAchievementInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedFile, setUploadedFileState] = useState<string | null>(() => {
@@ -654,12 +746,26 @@ const Dashboard = () => {
 
   /* ── helpers ── */
   const addSkill = () => {
-    if (skillInput.trim() && !data.skills.includes(skillInput.trim())) {
-      setData(p => ({ ...p, skills: [...p.skills, skillInput.trim()] }));
+    const trimmed = skillInput.trim();
+    if (trimmed) {
+      const prefixed = `${skillCategory}:${trimmed}`;
+      if (!data.skills.includes(prefixed)) {
+        setData(p => ({ ...p, skills: [...p.skills, prefixed] }));
+      }
       setSkillInput("");
     }
   };
-  const removeSkill = (i: number) => setData(p => ({ ...p, skills: p.skills.filter((_, j) => j !== i) }));
+  const removeSkill = (skillName: string, categoryLabel: string) => {
+    setData(p => ({
+      ...p,
+      skills: p.skills.filter(raw => {
+        const parts = raw.split(":");
+        const name = parts.length > 1 ? parts.slice(1).join(":").trim() : raw.trim();
+        const rawCat = getSkillCategories([raw])[0]?.label;
+        return !(name === skillName && rawCat === categoryLabel);
+      })
+    }));
+  };
 
   const addAchievement = () => {
     if (achievementInput.trim()) {
@@ -1239,6 +1345,18 @@ const Dashboard = () => {
                         <div>
                           <SH icon={Code} label="Skills" />
                           <div className="cp-tags-input-wrap">
+                            <select
+                              value={skillCategory}
+                              onChange={e => setSkillCategory(e.target.value)}
+                              className="cp-select"
+                              style={{ width: "200px", padding: "0 10px", height: "42px", borderRadius: "8px", border: "1px solid #E4DFD5", background: "#fff", outline: "none", fontSize: "14px", flexShrink: 0 }}
+                            >
+                              <option value="Frontend Development">Frontend Development</option>
+                              <option value="Backend & Databases">Backend & Databases</option>
+                              <option value="AI & Machine Learning">AI & Machine Learning</option>
+                              <option value="Tools & DevOps">Tools & DevOps</option>
+                              <option value="Other Skills">Other Skills</option>
+                            </select>
                             <input
                               value={skillInput}
                               onChange={e => setSkillInput(e.target.value)}
@@ -1248,14 +1366,24 @@ const Dashboard = () => {
                             />
                             <button onClick={addSkill} className="cp-btn-next" style={{ padding: "0 1.25rem", height: "42px", flexShrink: 0 }}><Plus className="h-5 w-5" /></button>
                           </div>
-                          <p className="text-[11px] text-muted-foreground mb-3">💡 Add skills one by one. They'll be auto-categorized in your portfolio.</p>
-                          <div className="cp-tags-list">
-                            {data.skills.map((skill, i) => (
-                              <span key={i} className="cp-tag-item">
-                                {skill}
-                                <button onClick={() => removeSkill(i)} aria-label="Remove skill">✕</button>
-                              </span>
+                          <p className="text-[11px] text-muted-foreground mb-3">💡 Select a category, type the skill name, and click '+' or press Enter.</p>
+                          <div className="space-y-3 mt-4">
+                            {getSkillCategories(data.skills).map((cat) => (
+                              <div key={cat.label} className="border border-[#E4DFD5] rounded-lg p-3 bg-[#FAF8F5]">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-[#7A7568] mb-2 font-mono">// {cat.label}</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {cat.skills.map((skillName, idx) => (
+                                    <span key={idx} className="cp-tag-item">
+                                      {skillName}
+                                      <button onClick={() => removeSkill(skillName, cat.label)} aria-label="Remove skill">✕</button>
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
                             ))}
+                            {data.skills.length === 0 && (
+                              <p className="text-xs text-[#7A7568] italic">No skills added yet.</p>
+                            )}
                           </div>
                         </div>
 
