@@ -548,13 +548,32 @@ const Dashboard = () => {
   const [skillInput, setSkillInput] = useState("");
   const [achievementInput, setAchievementInput] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
+  const [uploadedFile, setUploadedFileState] = useState<string | null>(() => {
+    return localStorage.getItem("dashboard_uploaded_file");
+  });
+  const [showManualForm, setShowManualFormState] = useState<boolean>(() => {
+    return localStorage.getItem("dashboard_show_manual_form") === "true";
+  });
+
+  const setUploadedFile = (file: string | null) => {
+    setUploadedFileState(file);
+    if (file) {
+      localStorage.setItem("dashboard_uploaded_file", file);
+    } else {
+      localStorage.removeItem("dashboard_uploaded_file");
+    }
+  };
+
+  const setShowManualForm = (show: boolean) => {
+    setShowManualFormState(show);
+    localStorage.setItem("dashboard_show_manual_form", String(show));
+  };
+
   const [step, setStep] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [isParsing, setIsParsing] = useState(false);
-  const [showManualForm, setShowManualForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -818,107 +837,108 @@ const Dashboard = () => {
           {isLoading && <div className="mb-6 text-sm text-muted-foreground">Loading your saved portfolio…</div>}
 
           {/* ── Resume Upload ── */}
-          <div className="mb-8">
-            {isParsing ? (
-              <div className="cp-form-card flex flex-col items-center justify-center py-10 text-center" style={{ borderColor: "#4F46E5", background: "#FAF8F5" }}>
-                <Sparkles className="h-8 w-8 text-primary animate-pulse mb-3" style={{ color: "#4F46E5" }} />
-                <h3 className="text-lg font-semibold animate-pulse" style={{ color: "#4F46E5" }}>Analyzing &amp; Parsing Resume…</h3>
-                <p className="text-sm text-muted-foreground mt-1">Extracting details and saving to your portfolio…</p>
-              </div>
-            ) : !uploadedFile ? (
-              <div
-                className={`cp-upload-box${isDragOver ? " drag-over" : ""}`}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragOver(false);
-                  const f = e.dataTransfer.files?.[0];
-                  if (f) processFile(f);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.txt"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
+          {!showManualForm && (
+            <div className="mb-8">
+              {isParsing ? (
+                <div className="cp-form-card flex flex-col items-center justify-center py-10 text-center" style={{ borderColor: "#4F46E5", background: "#FAF8F5" }}>
+                  <Sparkles className="h-8 w-8 text-primary animate-pulse mb-3" style={{ color: "#4F46E5" }} />
+                  <h3 className="text-lg font-semibold animate-pulse" style={{ color: "#4F46E5" }}>Analyzing &amp; Parsing Resume…</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Extracting details and saving to your portfolio…</p>
+                </div>
+              ) : !uploadedFile ? (
+                <div
+                  className={`cp-upload-box${isDragOver ? " drag-over" : ""}`}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(false);
+                    const f = e.dataTransfer.files?.[0];
                     if (f) processFile(f);
                   }}
-                />
-                <div className="cp-upload-icon-wrap">
-                  <Upload className="h-7 w-7" />
-                </div>
-                <p className="cp-upload-title">Upload Resume</p>
-                <p className="cp-upload-hint">Drag &amp; drop PDF / DOCX here, or click to browse</p>
-                <button
-                  className="cp-upload-btn"
-                  onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  <FileText className="h-4 w-4" /> Choose File
-                </button>
-              </div>
-            ) : (
-              <div className="cp-file-success flex flex-col items-start gap-4 p-5" style={{ background: "#EEF2FF", border: "1.5px solid #C7D2FE", borderRadius: "14px", color: "#374151" }}>
-                <div className="flex items-start gap-3 w-full">
-                  <CheckCircle2 className="h-5 w-5 text-[#4F46E5] shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-[#1E293B]">Resume Uploaded &amp; Parsed Successfully!</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Details have been parsed and populated. Would you like to review and fill manual details for better portfolio results, or continue directly?
-                    </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) processFile(f);
+                    }}
+                  />
+                  <div className="cp-upload-icon-wrap">
+                    <Upload className="h-7 w-7" />
                   </div>
+                  <p className="cp-upload-title">Upload Resume</p>
+                  <p className="cp-upload-hint">Drag &amp; drop PDF / DOCX here, or click to browse</p>
                   <button
-                    onClick={() => setUploadedFile(null)}
-                    className="text-slate-400 hover:text-slate-600 font-bold bg-transparent border-0 cursor-pointer text-sm"
+                    className="cp-upload-btn"
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                   >
-                    ✕
+                    <FileText className="h-4 w-4" /> Choose File
                   </button>
                 </div>
-                <div className="flex gap-3 w-full mt-2">
-                  <button
-                    onClick={() => {
-                      setShowManualForm(true);
-                      setUploadedFile(null);
-                    }}
-                    className="cp-btn-next"
-                    style={{
-                      background: "#4F46E5",
-                      color: "#fff",
-                      padding: "0.55rem 1.25rem",
-                      fontSize: "0.82rem",
-                      fontWeight: 600,
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      border: "none"
-                    }}
-                  >
-                    Review &amp; Edit Details
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await saveAndRedirect(data);
-                    }}
-                    className="cp-btn-back"
-                    style={{
-                      background: "#fff",
-                      color: "#64748B",
-                      border: "1.5px solid #E4DFD5",
-                      padding: "0.55rem 1.25rem",
-                      fontSize: "0.82rem",
-                      fontWeight: 600,
-                      borderRadius: "8px",
-                      cursor: "pointer"
-                    }}
-                  >
-                    Skip &amp; Continue
-                  </button>
+              ) : (
+                <div className="cp-file-success flex flex-col items-start gap-4 p-5" style={{ background: "#EEF2FF", border: "1.5px solid #C7D2FE", borderRadius: "14px", color: "#374151" }}>
+                  <div className="flex items-start gap-3 w-full">
+                    <CheckCircle2 className="h-5 w-5 text-[#4F46E5] shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#1E293B]">Resume Uploaded &amp; Parsed Successfully!</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Details have been parsed and populated. Would you like to review and fill manual details for better portfolio results, or continue directly?
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setUploadedFile(null)}
+                      className="text-slate-400 hover:text-slate-600 font-bold bg-transparent border-0 cursor-pointer text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="flex gap-3 w-full mt-2">
+                    <button
+                      onClick={() => {
+                        setShowManualForm(true);
+                      }}
+                      className="cp-btn-next"
+                      style={{
+                        background: "#4F46E5",
+                        color: "#fff",
+                        padding: "0.55rem 1.25rem",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        border: "none"
+                      }}
+                    >
+                      Review &amp; Edit Details
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await saveAndRedirect(data);
+                      }}
+                      className="cp-btn-back"
+                      style={{
+                        background: "#fff",
+                        color: "#64748B",
+                        border: "1.5px solid #E4DFD5",
+                        padding: "0.55rem 1.25rem",
+                        fontSize: "0.82rem",
+                        fontWeight: 600,
+                        borderRadius: "8px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Skip &amp; Continue
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* divider & manual option */}
           {!showManualForm && (
@@ -965,6 +985,24 @@ const Dashboard = () => {
 
           {showManualForm && (
             <>
+              {uploadedFile && (
+                <div className="mb-6 flex items-center justify-between rounded-xl bg-indigo-50/50 border border-indigo-100/50 px-4 py-3 text-sm text-slate-700 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4.5 w-4.5 text-[#4F46E5]" />
+                    <span>Using parsed data from resume: <strong className="text-slate-800">{uploadedFile}</strong></span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setUploadedFile(null);
+                      setShowManualForm(false);
+                    }}
+                    className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] hover:underline bg-transparent border-0 cursor-pointer"
+                  >
+                    Upload a different resume
+                  </button>
+                </div>
+              )}
+
               {/* ── STEPPER ── */}
               <div className="cp-stepper">
                 {stepLabels.map((s, i) => (
