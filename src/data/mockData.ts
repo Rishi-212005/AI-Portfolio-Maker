@@ -34,8 +34,8 @@ export interface PortfolioData {
   socialLinks: { _id?: string; platform: string; url: string }[];
   certifications?: {
     _id?: string;
-    name: string;
-    issuer: string;
+    name?: string;
+    issuer?: string;
     date: string;
     imageUrl?: string;
     credentialUrl?: string;
@@ -58,111 +58,164 @@ export interface PortfolioData {
 
 export const defaultPortfolioData: PortfolioData = {
   "id": "6a36901eb0d497b2bdbcecb8",
-  "name": "Aditya Ballari Nallari",
-  "title": "Aspiring AI and Data Science Engineer",
-  "about": "Aspiring AI and Data Science Engineer with foundamentals in Python, Machine Learning, and Data Analysis. Skilled in TensorFlow, Pandas, and Scikit-learn for building intelligent systems and extracting insights from data. Experienced in full-stack development and developing scalable, real-world applications using modern technologies. Passionate about solving real-world problems using data-driven approaches.",
+  "name": "SAI RISHI KUMAR VEDI",
+  "title": "Full-stack and AI/ML Engineering Student",
+  "about": "Full-stack and AI/ML engineering student with hands-on experience building production-grade web applications, REST APIs, and machine learning pipelines. Deployed AI models at an EdTech startup, interned with the Government of India on live e-Governance systems, and shipped a multi-modal deep learning solution. Skilled end-to-end across model training, scalable backend development, and real-world deployment.",
   "photo": "",
-  "email": "adityabn24@gmail.com",
-  "phone": "+91 9502849549",
-  "location": "",
+  "email": "sairishikumar.2005@gmail.com",
+  "phone": "+91 9390455681",
+  "location": "Anantapur, India",
   "website": "",
   "skills": [
-    "Java",
+    "JavaScript",
     "Python",
+    "PHP",
     "SQL",
-    "HTML",
-    "CSS",
-    "TensorFlow",
-    "Pandas",
-    "NumPy",
-    "Scikit-learn",
-    "Matplotlib",
-    "React",
-    "Spring Boot",
-    "MongoDB",
+    "TypeScript",
+    "React.js",
+    "HTML5",
+    "CSS3",
+    "Tailwind CSS",
+    "Bootstrap",
+    "Node.js",
+    "Express.js",
+    "FastAPI",
     "MySQL",
-    "Oracle XE",
+    "PostgreSQL",
+    "MongoDB",
     "REST APIs",
-    "JWT Authentication",
-    "Flyway Migrations",
-    "Data Science",
     "Machine Learning",
-    "Artificial Intelligence",
-    "Full-Stack Development"
+    "Deep Learning",
+    "Computer Vision",
+    "Natural Language Processing",
+    "TensorFlow",
+    "Scikit-learn",
+    "EfficientNetB0",
+    "TF-IDF",
+    "OCR",
+    "Model Training",
+    "Feature Engineering",
+    "Data Preprocessing",
+    "Hyperparameter Tuning",
+    "Git",
+    "GitHub",
+    "CI/CD",
+    "VS Code",
+    "Scalable Architecture",
+    "System Reliability",
+    "Agile Development",
+    "Stakeholder Collaboration"
   ],
   "projects": [
     {
-      "title": "Data Science Assistant using Generative AI",
-      "description": "Developed an AI-powered assistant to automate end-to-end data science workflows including data cleaning, analysis, visualization, and model generation. Integrated Generative AI models to generate insights, Python code, statistical summaries, and predictive models from natural language inputs. Implemented natural language processing to interpret both technical and non-technical queries and generate context-aware outputs. Automated exploratory data analysis (EDA) including missing value detection, correlation analysis, and feature importance identification. Generated dynamic visualizations using Matplotlib to improve interpretability of datasets and model outputs.",
+      "title": "Academic Authenticator - AI Certificate Verification",
+      "description": "Built an AI-driven document verification system using OCR and computer vision to detect forged academic certificates, reducing manual verification effort by over 70%. Developed REST APIs for automated fraud detection, enabling data-driven authenticity analysis across 500+ certificate types.",
       "tags": [
-        "Generative AI",
-        "Natural Language Processing",
-        "Data Science",
-        "Matplotlib",
-        "Python"
+        "Python",
+        "OCR",
+        "Node.js",
+        "MySQL",
+        "REST APIs"
       ],
-      "link": "",
-      "liveLink": "",
+      "link": "https://github.com/Rishi-212005/ACADEMIC-AUTHENTICATOR",
+      "liveLink": "https://academicauthenticator.free.nf",
       "imageUrl": "",
-      "_id": "6a3a82df52a4a535e8752683"
+      "_id": "6a3b8380eefa5034645d524e"
     },
     {
-      "title": "Helmet Detection System for Motorcycle Safety Enforcement",
-      "description": "Developed a computer vision-based system to automatically detect helmet usage in images for road and workplace safety compliance. Built a preprocessing pipeline to extract Regions of Interest (ROI) from XML-annotated datasets, resize images, and convert them into grayscale feature vectors. Trained a Random Forest Classifier on structured image features to classify helmet vs non-helmet cases. Designed and implemented an interactive Tkinter GUI for dataset upload, preprocessing, model training, and real-time prediction. Displayed prediction outputs with confidence scores to enhance interpretability and user trust.",
+      "title": "ML Smart Price Prediction - Hybrid Image and Text Model",
+      "description": "Designed a multi-modal deep learning model fusing EfficientNetB0 (computer vision) and NLP-based TF-IDF embeddings to predict product prices across 10,000+ listings with low MAE. Engineered end-to-end ML pipelines for parallel image processing, text vectorization, and feature serialization, significantly reducing inference overhead.",
       "tags": [
-        "Computer Vision",
-        "Random Forest Classifier",
-        "Tkinter",
-        "Python"
+        "Python",
+        "TensorFlow",
+        "Deep Learning",
+        "EfficientNetB0",
+        "TF-IDF",
+        "FastAPI"
       ],
-      "link": "",
+      "link": "https://github.com/Rishi-212005/ML-Smart-Price-Prediction",
       "liveLink": "",
       "imageUrl": "",
-      "_id": "6a3a82df52a4a535e8752684"
+      "_id": "6a3b8380eefa5034645d524f"
+    },
+    {
+      "title": "Campus Internship and Placement Portal",
+      "description": "Architected a full-stack platform with five role-based dashboards and Supabase Realtime integration for live application tracking and automated notifications across user roles.",
+      "tags": [
+        "React 18",
+        "TypeScript",
+        "Tailwind CSS",
+        "Supabase",
+        "REST APIs"
+      ],
+      "link": "https://github.com/Rishi-212005/InternConnect-Campus-Portal",
+      "liveLink": "",
+      "imageUrl": "",
+      "_id": "6a3b8380eefa5034645d5250"
     }
   ],
   "experience": [
     {
-      "role": "Software Development Intern",
-      "company": "DRDL, DRDO (Government of India)",
-      "duration": "Jan 2026 – Mar 2026",
-      "description": "Designed and developed a full-stack GPF Loan Management System to digitize General Provident Fund operations, eliminating manual paperwork. Built scalable backend services using Spring Boot and integrated RESTful APIs for seamless communi- cation between frontend and backend. Developed responsive UI using React, improving usability and accessibility for internal users. Implemented secure authentication and authorization using JWT, ensuring role-based access control. Applied Flyway migrations for version-controlled database schema management. Collaborated with team members in an agile environment to deliver features within deadlines. Tech Stack: React, Spring Boot, Oracle XE, JWT, REST API, Flyway",
-      "_id": "6a3a82df52a4a535e8752682"
+      "role": "AI/ML Intern",
+      "company": "Saral Vidhya",
+      "duration": "May 2026 - Jul 2026",
+      "description": "Trained machine learning and deep learning models for three EdTech products - Saral Vidhya (adaptive learning), Nirnayah (AI-powered academic grading), and Bodhana (intelligent tutoring assistant). Built FastAPI backend with JWT authentication and CRUD operations for model inference; deployed saralvidhya.com (React) with real-time student performance analytics.",
+      "_id": "6a3b8380eefa5034645d524c"
+    },
+    {
+      "role": "Web Development Intern",
+      "company": "National Informatics Centre (NIC), Govt. of India",
+      "duration": "May 2025 - Jul 2025",
+      "description": "Developed CRUD modules for a live e-Governance platform using PHP, MySQL, and JavaScript; enforced role-based authentication following government security standards. Structured REST APIs and backend validation logic, improving system efficiency and maintainability across cross-functional teams.",
+      "_id": "6a3b8380eefa5034645d524d"
     }
   ],
   "education": [
     {
-      "degree": "Bachelor of Technology (Artificial Intelligence Data Science Engineering)",
-      "school": "JNTUH",
-      "year": "2022 – 2026",
-      "_id": "6a3a82df52a4a535e875267f"
-    },
-    {
-      "degree": "Intermediate",
-      "school": "",
-      "year": "2020 – 2022",
-      "_id": "6a3a82df52a4a535e8752680"
-    },
-    {
-      "degree": "SSC",
-      "school": "",
-      "year": "2020",
-      "_id": "6a3a82df52a4a535e8752681"
+      "degree": "B.Tech Computer Science",
+      "school": "JNTU Anantapur",
+      "year": "2023 – 2027",
+      "_id": "6a3b8380eefa5034645d524b"
     }
   ],
   "socialLinks": [
     {
       "platform": "GitHub",
       "url": "",
-      "_id": "6a3a82df52a4a535e875267d"
+      "_id": "6a3b8380eefa5034645d5249"
     },
     {
       "platform": "LinkedIn",
       "url": "",
-      "_id": "6a3a82df52a4a535e875267e"
+      "_id": "6a3b8380eefa5034645d524a"
     }
   ],
-  "certifications": [],
+  "certifications": [
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5246"
+    },
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5247"
+    },
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5248"
+    }
+  ],
   "achievements": [],
   "languages": [],
   "designSettings": {
@@ -173,7 +226,7 @@ export const defaultPortfolioData: PortfolioData = {
     "showOpportunitiesBadge": true,
     "opportunitiesText": "AVAILABLE FOR OPPORTUNITIES",
     "customCss": "",
-    "_id": "6a3a82df52a4a535e875267c"
+    "_id": "6a3b8380eefa5034645d5245"
   },
   "templateId": "retro-terminal",
   "sectionOrder": [
