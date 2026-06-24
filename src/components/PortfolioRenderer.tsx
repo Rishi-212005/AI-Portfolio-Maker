@@ -1333,26 +1333,41 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
     const activeData = isAdminLoggedIn ? editedData : data;
     return {
       ...activeData,
+      name: (activeData.name || "").trim().replace(/\s+/g, " "),
       website: activeData.website ? ensureAbsoluteUrl(activeData.website) : activeData.website,
       socialLinks: (activeData.socialLinks || []).map(l => ({
         ...l,
         url: ensureAbsoluteUrl(l.url)
       })),
-      projects: (activeData.projects || []).map(p => ({
+      projects: (activeData.projects || []).map((p, idx) => ({
         ...p,
+        title: p.title || `Project ${idx + 1}`,
         tags: p.tags || [],
         link: p.link ? ensureAbsoluteUrl(p.link) : p.link,
         liveLink: p.liveLink ? ensureAbsoluteUrl(p.liveLink) : p.liveLink
       })),
       skills: activeData.skills || [],
-      experience: activeData.experience || [],
-      education: activeData.education || [],
-      certifications: (activeData.certifications || []).map(c => ({
+      experience: (activeData.experience || []).map((e, idx) => ({
+        ...e,
+        role: e.role || `Role ${idx + 1}`,
+        company: e.company || `Company ${idx + 1}`
+      })),
+      education: (activeData.education || []).map((edu, idx) => ({
+        ...edu,
+        degree: edu.degree || `Degree ${idx + 1}`,
+        school: edu.school || `School ${idx + 1}`
+      })),
+      certifications: (activeData.certifications || []).map((c, idx) => ({
         ...c,
+        name: c.name || `Certification ${idx + 1}`,
+        issuer: c.issuer || `Issuer ${idx + 1}`,
         credentialUrl: c.credentialUrl ? ensureAbsoluteUrl(c.credentialUrl) : c.credentialUrl
       })),
       achievements: activeData.achievements || [],
-      languages: activeData.languages || []
+      languages: (activeData.languages || []).map((lang, idx) => ({
+        ...lang,
+        name: lang.name || `Language ${idx + 1}`
+      }))
     };
   }, [data, editedData, isAdminLoggedIn]);
 
@@ -2140,7 +2155,7 @@ const TechMinimalist = ({
             className={`text-5xl sm:text-7xl font-black tracking-tight leading-none ${isDark ? "text-white" : "text-slate-900"}`}
           >
             {data.name.split(" ").map((word, wi) => (
-              <span key={word} className="inline-block mr-4 sm:mr-6" style={wi === data.name.split(" ").length - 1 ? { color: themeColor } : {}}>
+              <span key={`${word}-${wi}`} className="inline-block mr-4 sm:mr-6" style={wi === data.name.split(" ").length - 1 ? { color: themeColor } : {}}>
                 {word}
               </span>
             ))}
