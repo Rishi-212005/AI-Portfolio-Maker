@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Send,
   Bell,
+  Download,
   Trash2,
   Check,
   ChevronUp,
@@ -43,6 +44,7 @@ interface Props {
   themeColor?: string;
   sectionOrder?: string[];
   isPreview?: boolean;
+  onDownloadCode?: () => void;
 }
 
 const ensureAbsoluteUrl = (url?: string): string => {
@@ -1308,7 +1310,7 @@ const AdminControlBar = ({
   );
 };
 
-const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false }: Props) => {
+const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false, onDownloadCode }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [notifications, setNotifications] = useState<{ _id: string; name: string; email: string; message: string; is_read: boolean; createdAt: string }[]>([]);
@@ -1391,7 +1393,41 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
 
   const fetchNotifications = async () => {
     const token = localStorage.getItem("auth_token");
-    if (!token || !API_URL) return;
+    if (!token || !API_URL) {
+      const localData = localStorage.getItem('local_portfolio_notifications');
+      if (localData) {
+        try {
+          const list = JSON.parse(localData);
+          setNotifications(list);
+          setUnreadCount(list.filter((n: any) => !n.is_read).length);
+        } catch (e) {
+          console.warn("Failed to parse local notifications", e);
+        }
+      } else {
+        const defaultMocks = [
+          {
+            _id: "mock-1",
+            name: "Sarah Jenkins",
+            email: "sarah.j@example.com",
+            message: "Hello! Loved your portfolio projects. Are you open to freelance contracts for a React/Tailwind frontend project?",
+            is_read: false,
+            createdAt: new Date(Date.now() - 3600000 * 2).toISOString()
+          },
+          {
+            _id: "mock-2",
+            name: "David Chen",
+            email: "dchen@techstartup.io",
+            message: "Hi there, we are looking for a senior dev advocate at our startup. Would love to hop on a call next week to discuss your work.",
+            is_read: true,
+            createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+          }
+        ];
+        localStorage.setItem('local_portfolio_notifications', JSON.stringify(defaultMocks));
+        setNotifications(defaultMocks);
+        setUnreadCount(1);
+      }
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/api/portfolio/notifications`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -1408,9 +1444,43 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
     }
   };
 
+  const handleMessageSent = (name: string, email: string, message: string) => {
+    const newNotif = {
+      _id: `local-${Date.now()}`,
+      name,
+      email,
+      message,
+      is_read: false,
+      createdAt: new Date().toISOString()
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    setUnreadCount(prev => prev + 1);
+    const token = localStorage.getItem("auth_token");
+    if (!token || !API_URL) {
+      const localData = localStorage.getItem('local_portfolio_notifications');
+      const currentList = localData ? JSON.parse(localData) : [];
+      const updatedList = [newNotif, ...currentList];
+      localStorage.setItem('local_portfolio_notifications', JSON.stringify(updatedList));
+    }
+  };
+
   const markAsRead = async (id: string) => {
     const token = localStorage.getItem("auth_token");
-    if (!token || !API_URL) return;
+    if (!token || !API_URL) {
+      const localData = localStorage.getItem('local_portfolio_notifications');
+      if (localData) {
+        try {
+          const list = JSON.parse(localData);
+          const updated = list.map((n: any) => n._id === id ? { ...n, is_read: true } : n);
+          localStorage.setItem('local_portfolio_notifications', JSON.stringify(updated));
+          setNotifications(updated);
+          setUnreadCount(updated.filter((n: any) => !n.is_read).length);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      return;
+    }
     try {
       await fetch(`${API_URL}/api/portfolio/notifications/read`, {
         method: "POST",
@@ -1428,7 +1498,21 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
 
   const deleteNotification = async (id: string) => {
     const token = localStorage.getItem("auth_token");
-    if (!token || !API_URL) return;
+    if (!token || !API_URL) {
+      const localData = localStorage.getItem('local_portfolio_notifications');
+      if (localData) {
+        try {
+          const list = JSON.parse(localData);
+          const updated = list.filter((n: any) => n._id !== id);
+          localStorage.setItem('local_portfolio_notifications', JSON.stringify(updated));
+          setNotifications(updated);
+          setUnreadCount(updated.filter((n: any) => !n.is_read).length);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      return;
+    }
     try {
       await fetch(`${API_URL}/api/portfolio/notifications/clear`, {
         method: "POST",
@@ -1446,7 +1530,12 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
 
   const clearAllNotifications = async () => {
     const token = localStorage.getItem("auth_token");
-    if (!token || !API_URL) return;
+    if (!token || !API_URL) {
+      localStorage.setItem('local_portfolio_notifications', JSON.stringify([]));
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     try {
       await fetch(`${API_URL}/api/portfolio/notifications/clear`, {
         method: "POST",
@@ -1521,27 +1610,27 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
     const isMobile = containerWidth < 768;
     switch (templateId) {
       case "tech-minimalist":
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "retro-terminal":
-        return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <RetroTerminal data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "glass-aurora":
-        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <GlassAurora data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "cyberpunk-glitch":
-        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <CyberpunkGlitch data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "neobrutalist-bold":
-        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <NeobrutalistBold data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "elegant-serif":
-        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <ElegantEditorial data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "gradient-spotlight":
-        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <GradientSpotlight data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "interactive-timeline":
-        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <InteractiveTimeline data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "card-deck":
-        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <CardDeck data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       case "dashboard-saas":
-        return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} />;
+        return <DashboardSaas data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
       default:
-        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} />;
+        return <TechMinimalist data={normalizedData} isDark={isDark} themeColor={activeThemeColor} sectionOrder={orderToUse} isPreview={isPreview} unreadCount={unreadCount} onOpenNotifications={() => setShowNotifications(true)} isMobile={isMobile} onDownloadCode={onDownloadCode} onMessageSent={handleMessageSent} />;
     }
   };
 
@@ -1981,7 +2070,213 @@ const SkillBadge = ({ skill, themeColor }: { skill: string; themeColor: string }
 };
 
 /* ====== 1. TECH MINIMALIST ====== */
-const TechMinimalist = ({ 
+
+// ==================== DESIGN UPGRADES INJECTIONS ====================
+interface FlipCardProps {
+  cert: any;
+  themeColor: string;
+  isDark: boolean;
+  muted: string;
+  cardBg: string;
+}
+
+const CertificateFlipCard = ({ cert, themeColor, isDark, muted, cardBg }: FlipCardProps) => {
+  const [isFlipped, setIsFlipped] = useState(false);
+  return (
+    <div 
+      className="relative w-full h-[220px] [perspective:1000px] cursor-pointer group font-sans"
+      onMouseEnter={() => setIsFlipped(true)}
+      onMouseLeave={() => setIsFlipped(false)}
+      onClick={() => setIsFlipped(prev => !prev)}
+    >
+      <div 
+        className="w-full h-full transition-transform duration-500 [transform-style:preserve-3d] relative"
+        style={{ transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+      >
+        {/* Front side */}
+        <div className={`absolute inset-0 [backface-visibility:hidden] w-full h-full rounded-xl border flex flex-col justify-between overflow-hidden shadow-sm ${cardBg}`}>
+          {cert.imageUrl ? (
+            <div className="h-28 w-full overflow-hidden border-b relative" style={{ borderColor: `${themeColor}20` }}>
+              <img src={cert.imageUrl} alt={cert.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            </div>
+          ) : (
+            <div className="h-24 w-full flex items-center justify-center border-b relative" style={{ borderColor: `${themeColor}20`, backgroundColor: `${themeColor}06` }}>
+              <Award className="h-10 w-10 opacity-25" style={{ color: themeColor }} />
+            </div>
+          )}
+          <div className="p-3.5 flex-1 flex flex-col justify-between">
+            <h4 className={`font-bold text-xs leading-snug line-clamp-2 ${isDark ? "text-slate-200" : "text-slate-800"}`}>{cert.name}</h4>
+            <div className="flex items-center justify-between mt-1 select-none">
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border" style={{ color: themeColor, borderColor: `${themeColor}25`, backgroundColor: `${themeColor}05` }}>{cert.issuer}</span>
+              <span className="text-[9px] text-zinc-550 font-medium">Hover to flip</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Back side */}
+        <div 
+          className={`absolute inset-0 [backface-visibility:hidden] [transform:rotateY(180deg)] w-full h-full rounded-xl border flex flex-col justify-between p-4 shadow-lg ${cardBg}`}
+          style={{ borderColor: `${themeColor}40` }}
+        >
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Award className="h-4 w-4" style={{ color: themeColor }} />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 select-none">Verification</span>
+            </div>
+            <h4 className={`font-bold text-xs leading-snug ${isDark ? "text-slate-250" : "text-slate-800"}`}>{cert.name}</h4>
+            <p className="text-[10px] text-zinc-400 leading-normal">Issuer: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{cert.issuer}</strong></p>
+            <p className="text-[10px] text-zinc-400 leading-normal">Issued: <strong className={isDark ? "text-slate-200" : "text-slate-800"}>{cert.date}</strong></p>
+          </div>
+          {cert.credentialUrl && (
+            <a 
+              href={cert.credentialUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              className="w-full text-center py-1.5 rounded font-bold text-[9px] uppercase tracking-wider transition-colors inline-block select-none"
+              style={{ backgroundColor: themeColor, color: isDark ? '#000' : '#fff' }}
+            >
+              Verify Code
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TemplateHeroBackground = ({ templateId, themeColor, isDark }: { templateId: string; themeColor: string; isDark: boolean }) => {
+  switch (templateId) {
+    case "tech-minimalist":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px] opacity-[0.03] dark:opacity-[0.015]" />
+          {[...Array(4)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full filter blur-[80px]"
+              style={{
+                width: 200 + i * 50,
+                height: 200 + i * 50,
+                backgroundColor: themeColor,
+                opacity: 0.02,
+                top: `${20 + i * 15}%`,
+                left: `${15 + i * 20}%`,
+              }}
+              animate={{
+                x: [0, 30, -20, 0],
+                y: [0, -40, 30, 0],
+              }}
+              transition={{
+                duration: 12 + i * 4,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+          ))}
+        </div>
+      );
+    case "retro-terminal":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(34,197,94,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(34,197,94,0.02)_1px,transparent_1px)] bg-[size:30px_30px]" />
+        </div>
+      );
+    case "glass-aurora":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <motion.div 
+            className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full filter blur-[100px] opacity-20" 
+            style={{ backgroundColor: themeColor }}
+            animate={{ x: [0, 80, -40, 0], y: [0, -45, 80, 0] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full filter blur-[100px] opacity-15" 
+            style={{ backgroundColor: "hsl(270 80% 65%)" }}
+            animate={{ x: [0, -80, 40, 0], y: [0, 45, -80, 0] }}
+            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute top-[30%] right-[10%] w-[40vw] h-[40vw] rounded-full filter blur-[120px] opacity-10" 
+            style={{ backgroundColor: "hsl(190 95% 55%)" }}
+            animate={{ x: [0, 40, -40, 0], y: [0, -50, 40, 0] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+      );
+    case "cyberpunk-glitch":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,255,204,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,0,85,0.03)_1px,transparent_1px)] bg-[size:30px_30px]" />
+          <motion.div
+            className="absolute w-full h-[2px] bg-gradient-to-r from-transparent via-[#ff0055] to-transparent opacity-40"
+            animate={{ top: ["0%", "100%", "0%"] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          />
+        </div>
+      );
+    case "neobrutalist-bold":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[radial-gradient(#000000_1px,transparent_1px)] dark:bg-[radial-gradient(#ffffff_1px,transparent_1px)] bg-[size:24px_24px] opacity-[0.05]" />
+          <motion.div 
+            className="absolute top-[20%] left-[8%] w-10 h-10 border-2 border-black dark:border-white shadow-[3px_3px_0px_#000] dark:shadow-[3px_3px_0px_#fff] rotate-12"
+            style={{ backgroundColor: themeColor }}
+            animate={{ y: [0, -12, 0], rotate: [12, 25, 12] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute bottom-[30%] right-[10%] w-14 h-14 border-2 border-black dark:border-white rounded-full shadow-[3px_3px_0px_#000] dark:shadow-[3px_3px_0px_#fff]"
+            style={{ backgroundColor: "hsl(40 100% 50%)" }}
+            animate={{ y: [0, 15, 0] }}
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+      );
+    case "elegant-serif":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0 opacity-[0.04]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#000_1px,transparent_1px)] bg-[size:40px_40px]" />
+        </div>
+      );
+    case "gradient-spotlight":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] opacity-[0.02] dark:opacity-[0.01]" />
+        </div>
+      );
+    case "interactive-timeline":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0 opacity-15">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:50px_50px] opacity-[0.05]" />
+        </div>
+      );
+    case "card-deck":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <motion.div 
+            className="absolute top-[40%] left-[20%] w-[35vw] h-[35vw] rounded-full filter blur-[100px] opacity-10" 
+            style={{ backgroundColor: themeColor }}
+            animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
+            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+      );
+    case "dashboard-saas":
+      return (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(128,128,128,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(128,128,128,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        </div>
+      );
+    default:
+      return null;
+  }
+};
+// ====================================================================
+
+const TechMinimalist = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -1999,10 +2294,19 @@ const TechMinimalist = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
   const [activeSection, setActiveSection] = useState("home");
+  const [selectedTag, setSelectedTag] = useState("All");
+  const allTags = useMemo(() => ["All", ...Array.from(new Set((data.projects || []).flatMap(p => p.tags || [])))], [data.projects]);
+  const filteredProjects = useMemo(() => {
+    if (selectedTag === "All") return data.projects || [];
+    return (data.projects || []).filter(p => p.tags?.includes(selectedTag));
+  }, [data.projects, selectedTag]);
+  
   const [typedText, setTypedText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -2195,8 +2499,9 @@ const TechMinimalist = ({
           ))}
         </div>
         <div className="flex items-center gap-3">
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1.5 rounded-full hover:bg-slate-850/10 dark:hover:bg-slate-800/40 transition-colors"
               title="Open Inbox Messages"
@@ -2208,7 +2513,20 @@ const TechMinimalist = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1.5 rounded-full hover:bg-slate-850/10 dark:hover:bg-slate-800/40 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4.5 w-4.5" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -2236,6 +2554,7 @@ const TechMinimalist = ({
 
       {/* ===== HERO ===== */}
       <section id="home" className="min-h-[92vh] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden z-10">
+        <TemplateHeroBackground templateId="tech-minimalist" themeColor={themeColor} isDark={isDark || false} />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-[0.05] blur-[100px]" style={{ backgroundColor: themeColor }} />
         </div>
@@ -2807,7 +3126,7 @@ const TechMinimalist = ({
                       </div>
                       <SocialIcons links={data.socialLinks} color={themeColor} />
                     </div>
-                    <CommonContactForm
+                    <CommonContactForm onMessageSent={onMessageSent}
                       inputStyle={`w-full p-3 border rounded-sm text-xs font-mono focus:outline-none transition-colors ${isDark ? "bg-slate-900 border-slate-800 text-white focus:border-slate-700 placeholder:text-slate-600" : "bg-slate-50 border-slate-200 text-slate-900 focus:border-slate-300 placeholder:text-slate-400"}`}
                       buttonStyle={`w-full py-3 font-bold rounded-sm uppercase tracking-widest text-xs transition-all hover:opacity-90 hover:scale-[1.01]`}
                       buttonColor={themeColor}
@@ -2834,7 +3153,9 @@ const TechMinimalist = ({
 };
 
 /* ====== 2. RETRO TERMINAL (INTERACTIVE CLI) ====== */
-const RetroTerminal = ({ 
+const RetroTerminal = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -2851,6 +3172,8 @@ const RetroTerminal = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
 }) => {
   const hostUser = useMemo(() => (data.name || "user").toLowerCase().replace(/\s+/g, "-"), [data.name]);
@@ -3081,6 +3404,7 @@ echo "Session transmission completed. Terminal returning."`
         const submitWizardMessage = async () => {
           if (!portfolioId || !API_URL) {
             setTimeout(() => {
+              onMessageSent?.(nextData.name, nextData.email, raw);
               setHistory(prev => [
                 ...prev,
                 "[UPLINK SYSTEM: OFFLINE]",
@@ -3102,6 +3426,7 @@ echo "Session transmission completed. Terminal returning."`
               })
             });
             if (res.ok) {
+              onMessageSent?.(nextData.name, nextData.email, raw);
               setHistory(prev => [
                 ...prev,
                 "[STATUS: SUCCESS]",
@@ -3331,8 +3656,9 @@ echo "Session transmission completed. Terminal returning."`
               );
             })}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1.5 mr-3 rounded-full hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
               title="Open Inbox Messages"
@@ -3344,7 +3670,20 @@ echo "Session transmission completed. Terminal returning."`
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1.5 mr-3 rounded-full hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: isDark ? themeColor : "#1c1917" }} />
+              
+            </button>
+            )
+          }
         </div>
 
         {/* MIDDLE CODE VIEWER */}
@@ -3430,7 +3769,9 @@ echo "Session transmission completed. Terminal returning."`
 
 
 /* ====== 3. GLASSMORPHIC AURORA ====== */
-const GlassAurora = ({ 
+const GlassAurora = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -3448,6 +3789,8 @@ const GlassAurora = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -3489,7 +3832,8 @@ const GlassAurora = ({
                 </a>
               ))}
             </div>
-            {isPreview && onOpenNotifications && (
+            {
+            isPreview && onOpenNotifications && (
               <button
                 onClick={onOpenNotifications}
                 className="relative p-1 rounded-full hover:bg-slate-500/10 dark:hover:bg-slate-300/10 transition-colors"
@@ -3502,7 +3846,20 @@ const GlassAurora = ({
                   </span>
                 )}
               </button>
-            )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+                onClick={onDownloadCode}
+                className="relative p-1 rounded-full hover:bg-slate-500/10 dark:hover:bg-slate-300/10 transition-colors"
+                title="Download Codebase"
+              >
+                <Download className="h-4 w-4" style={{ color: themeColor }} />
+                
+              </button>
+            )
+          }
             <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
               {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -3908,7 +4265,7 @@ const GlassAurora = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none ${isDark ? "bg-slate-950 border-slate-850 text-white focus:border-slate-800" : "bg-slate-50 border-slate-200 text-slate-900 focus:border-slate-350"}`}
                       buttonStyle="w-full py-2.5 font-bold rounded-xl hover:opacity-90 uppercase tracking-widest text-xs transition-opacity"
                       buttonColor={themeColor}
@@ -3933,7 +4290,9 @@ const GlassAurora = ({
 
 
 /* ====== 4. CYBERPUNK GLITCH ====== */
-const CyberpunkGlitch = ({ 
+const CyberpunkGlitch = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -3951,6 +4310,8 @@ const CyberpunkGlitch = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -3980,8 +4341,9 @@ const CyberpunkGlitch = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
               title="Open Inbox Messages"
@@ -3993,7 +4355,20 @@ const CyberpunkGlitch = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -4392,7 +4767,7 @@ const CyberpunkGlitch = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 border rounded-none text-xs focus:outline-none font-mono ${isDark ? "bg-zinc-900 border-zinc-800 text-white focus:border-zinc-700" : "bg-zinc-50 border-zinc-200 text-zinc-900 focus:border-zinc-300"}`}
                       buttonStyle="w-full py-2.5 font-extrabold rounded-none uppercase tracking-widest text-xs transition-opacity hover:opacity-90"
                       buttonColor={themeColor}
@@ -4418,7 +4793,9 @@ const CyberpunkGlitch = ({
 
 
 /* ====== 5. NEOBRUTALIST BOLD ====== */
-const NeobrutalistBold = ({ 
+const NeobrutalistBold = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -4436,6 +4813,8 @@ const NeobrutalistBold = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -4459,8 +4838,9 @@ const NeobrutalistBold = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative hover:bg-cyan-200 border-2 border-black bg-white text-black p-1 transition-colors shadow-[1.5px_1.5px_0px_#000] cursor-pointer"
               title="Open Inbox Messages"
@@ -4472,7 +4852,20 @@ const NeobrutalistBold = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative hover:bg-cyan-200 border-2 border-black bg-white text-black p-1 transition-colors shadow-[1.5px_1.5px_0px_#000] cursor-pointer"
+              title="Download Codebase"
+            >
+              <Download className="h-4.5 w-4.5" />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} hover:bg-cyan-200 border-2 border-black bg-white text-black p-1 transition-colors shadow-[1.5px_1.5px_0px_#000] cursor-pointer`} onClick={() => setMenuOpen(m => !m)}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -4849,7 +5242,7 @@ const NeobrutalistBold = ({
                         ))}
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 border-2 border-black text-xs focus:outline-none font-bold ${isDark ? "bg-zinc-800 text-white focus:bg-zinc-900" : "bg-white text-black focus:bg-yellow-50"}`}
                       buttonStyle="w-full py-2.5 bg-black text-white hover:bg-zinc-800 font-black rounded-none uppercase tracking-widest text-xs shadow-[3px_3px_0px_#000]" 
                       portfolioId={portfolioId}
@@ -4873,7 +5266,9 @@ const NeobrutalistBold = ({
 
 
 /* ====== 6. ELEGANT EDITORIAL ====== */
-const ElegantEditorial = ({ 
+const ElegantEditorial = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -4891,6 +5286,8 @@ const ElegantEditorial = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -4915,8 +5312,9 @@ const ElegantEditorial = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1 rounded hover:bg-stone-500/10 dark:hover:bg-[#fcfbf9]/10 transition-colors"
               title="Open Inbox Messages"
@@ -4928,7 +5326,20 @@ const ElegantEditorial = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1 rounded hover:bg-stone-500/10 dark:hover:bg-[#fcfbf9]/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -5263,7 +5674,7 @@ const ElegantEditorial = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 bg-transparent border rounded-none text-xs focus:outline-none font-serif italic ${isDark ? "border-stone-800 text-stone-200 focus:border-stone-700" : "border-stone-300 text-stone-800 focus:border-stone-800"}`}
                       buttonStyle="w-full py-2.5 bg-stone-900 text-white font-bold rounded-none hover:bg-stone-800 uppercase tracking-widest text-xs" 
                       portfolioId={portfolioId}
@@ -5287,7 +5698,9 @@ const ElegantEditorial = ({
 
 
 /* ====== 7. CREATIVE SPOTLIGHT ====== */
-const GradientSpotlight = ({ 
+const GradientSpotlight = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -5305,6 +5718,8 @@ const GradientSpotlight = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -5382,8 +5797,9 @@ const GradientSpotlight = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
               title="Open Inbox Messages"
@@ -5395,7 +5811,20 @@ const GradientSpotlight = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -5652,7 +6081,7 @@ const GradientSpotlight = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none font-mono ${isDark ? "bg-zinc-900/60 border-zinc-800 text-zinc-350 focus:border-zinc-700" : "bg-white border-zinc-200 text-zinc-850 focus:border-zinc-350 shadow-sm"}`}
                       buttonStyle={`w-full py-2.5 font-extrabold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90 ${isDark ? "text-zinc-950" : "text-white"}`}
                       buttonColor={themeColor}
@@ -5677,7 +6106,9 @@ const GradientSpotlight = ({
 
 
 /* ====== 8. PRODUCT TIMELINE ====== */
-const InteractiveTimeline = ({ 
+const InteractiveTimeline = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -5695,6 +6126,8 @@ const InteractiveTimeline = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -5731,8 +6164,9 @@ const InteractiveTimeline = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
               title="Open Inbox Messages"
@@ -5744,7 +6178,20 @@ const InteractiveTimeline = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -5993,7 +6440,7 @@ const InteractiveTimeline = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 border rounded-xl text-xs focus:outline-none focus:ring-1 ${isDark ? "bg-slate-900 border-slate-800 text-white focus:border-slate-700 focus:ring-slate-700" : "bg-white border-slate-250 text-slate-900 focus:border-slate-350 focus:ring-slate-350"}`}
                       buttonStyle="w-full py-2.5 text-white font-bold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90" 
                       buttonColor={themeColor}
@@ -6018,7 +6465,9 @@ const InteractiveTimeline = ({
 
 
 /* ====== 9. 3D CARD DECK ====== */
-const CardDeck = ({ 
+const CardDeck = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -6036,6 +6485,8 @@ const CardDeck = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
   isMobile: boolean;
 }) => {
@@ -6072,8 +6523,9 @@ const CardDeck = ({
               </a>
             ))}
           </div>
-          {isPreview && onOpenNotifications && (
-            <button
+          {
+            isPreview && onOpenNotifications && (
+              <button
               onClick={onOpenNotifications}
               className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
               title="Open Inbox Messages"
@@ -6085,7 +6537,20 @@ const CardDeck = ({
                 </span>
               )}
             </button>
-          )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+              onClick={onDownloadCode}
+              className="relative p-1 rounded hover:bg-slate-800/10 dark:hover:bg-white/10 transition-colors"
+              title="Download Codebase"
+            >
+              <Download className="h-4 w-4" style={{ color: themeColor }} />
+              
+            </button>
+            )
+          }
           <button className={`${isMobile ? "block" : "hidden"} p-1 rounded transition-colors`} onClick={() => setMenuOpen(m => !m)} style={{ color: themeColor }}>
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -6344,7 +6809,7 @@ const CardDeck = ({
                         <SocialIcons links={data.socialLinks} color={themeColor} />
                       </div>
                     </div>
-                    <CommonContactForm 
+                    <CommonContactForm onMessageSent={onMessageSent} 
                       inputStyle={`w-full p-2.5 rounded-xl text-xs focus:outline-none focus:ring-1 ${isDark ? "bg-slate-900 border-slate-800 text-indigo-400 focus:border-slate-700 focus:ring-slate-700" : "bg-white border-slate-250 text-slate-800 focus:border-slate-350 focus:ring-slate-350"}`}
                       buttonStyle="w-full py-2.5 text-zinc-950 font-bold rounded-xl uppercase tracking-widest text-xs transition-opacity hover:opacity-90" 
                       buttonColor={themeColor}
@@ -6369,7 +6834,9 @@ const CardDeck = ({
 
 
 /* ====== 10. SAAS DEVELOPER (DASHBOARD TABS) ====== */
-const DashboardSaas = ({ 
+const DashboardSaas = ({
+  onDownloadCode,
+  onMessageSent, 
   data, 
   isDark, 
   themeColor, 
@@ -6386,6 +6853,8 @@ const DashboardSaas = ({
   isPreview?: boolean;
   unreadCount?: number;
   onOpenNotifications?: () => void;
+  onDownloadCode?: () => void;
+  onMessageSent?: (name: string, email: string, message: string) => void;
   portfolioId?: string;
 }) => {
   const sections = sectionOrder;
@@ -6642,7 +7111,7 @@ const DashboardSaas = ({
                 <SocialIcons links={data.socialLinks} color={themeColor} />
               </div>
             </div>
-            <CommonContactForm 
+            <CommonContactForm onMessageSent={onMessageSent} 
               inputStyle={`w-full p-2.5 border rounded-lg text-xs focus:outline-none font-mono ${isDark ? "bg-slate-900 border-slate-855 text-slate-200 focus:border-slate-700" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-slate-300"}`}
               buttonStyle="w-full py-2.5 font-bold rounded-lg hover:opacity-90 uppercase tracking-widest text-xs" 
               buttonColor={themeColor}
@@ -6706,8 +7175,9 @@ const DashboardSaas = ({
               <span>{data.name} // {activeTab}</span>
             </h1>
             <div className="flex items-center gap-3">
-              {isPreview && onOpenNotifications && (
-                <button
+              {
+            isPreview && onOpenNotifications && (
+              <button
                   onClick={onOpenNotifications}
                   className="relative p-1.5 rounded-lg hover:bg-slate-500/10 transition-colors"
                   title="Open Inbox Messages"
@@ -6719,7 +7189,20 @@ const DashboardSaas = ({
                     </span>
                   )}
                 </button>
-              )}
+            )
+          }
+          {
+            onDownloadCode && (
+              <button
+                  onClick={onDownloadCode}
+                  className="relative p-1.5 rounded-lg hover:bg-slate-500/10 transition-colors"
+                  title="Download Codebase"
+                >
+                  <Download className="h-4 w-4" style={{ color: themeColor }} />
+                  
+                </button>
+            )
+          }
               <span className="text-[9px] px-2 py-0.5 rounded font-mono border" style={{ color: themeColor, borderColor: isDark ? "#1e293b" : "#e2e8f0", backgroundColor: isDark ? "#020617" : "#f1f5f9" }}>
                 SESSION: ACTIVE
               </span>
