@@ -133,6 +133,17 @@ const portfolioHistorySchema = new mongoose.Schema({
 
 const PortfolioHistory = mongoose.model("PortfolioHistory", portfolioHistorySchema);
 
+const notificationSchema = new mongoose.Schema({
+  portfolio_id: { type: mongoose.Schema.Types.ObjectId, ref: "Portfolio", required: true },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  message: { type: String, required: true },
+  is_read: { type: Boolean, default: false },
+  created_at: { type: Date, default: Date.now }
+});
+
+const Notification = mongoose.model("Notification", notificationSchema);
+
 function mapPortfolioToMongoose(data) {
   if (!data) return {};
   const updateFields = {
@@ -240,7 +251,67 @@ app.post("/api/auth/login", async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user && email.toLowerCase() === "admin@domain.com" && password === "admin123") {
+      // Auto-seed admin user
+      const passwordHash = bcrypt.hashSync("admin123", 10);
+      user = new User({
+        name: "Admin User",
+        email: "admin@domain.com",
+        password_hash: passwordHash
+      });
+      await user.save();
+
+      // Create a default portfolio for this admin user
+      const defaultPortfolio = new Portfolio({
+        user_id: user._id,
+        template_id: "tech-minimalist",
+        name: "Sai Rishi Kumar Vedi",
+        title: "Full-Stack Developer & Cybersecurity Enthusiast",
+        about: "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
+        email: "sairishikumarvedi@gmail.com",
+        phone: "+91 98765 43210",
+        location: "Ananthapuramu, Andhra Pradesh, India",
+        website: "https://rishi-212005.github.io/Personel-Portfolio/",
+        skills: [
+          "React", "TypeScript", "JavaScript",
+          "Node.js", "Express", "PHP", "Python",
+          "MySQL", "MongoDB",
+          "TailwindCSS", "Git", "Linux",
+        ],
+        projects: [
+          {
+            title: "Academia Authenticator",
+            description: "An AI-powered academic verification system with OCR data extraction and secure credential parsing. Reduces manual verification time by 80%.",
+            tags: ["Python", "OCR", "FastAPI", "MongoDB"],
+            link: "https://github.com/Rishi-212005/Academia-Authenticator",
+            liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
+            imageUrl: ""
+          }
+        ],
+        experience: [
+          {
+            role: "Software Engineer Intern",
+            company: "National Informatics Centre (NIC)",
+            duration: "May 2025 – Jul 2025",
+            description: "Designed e-governance system workflows, implemented RBAC authentication modules, and optimized secure backend queries in PHP/MySQL."
+          }
+        ],
+        education: [
+          {
+            degree: "B.Tech Computer Science & Engineering",
+            school: "JNTU Anantapur",
+            year: "2023 – 2027"
+          }
+        ],
+        socialLinks: [
+          { platform: "GitHub", url: "https://github.com/Rishi-212005" },
+          { platform: "LinkedIn", url: "https://linkedin.com/in/sairishikumarvedi" }
+        ]
+      });
+      await defaultPortfolio.save();
+    }
 
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -319,6 +390,7 @@ app.get("/api/portfolio", requireAuth, async (req, res) => {
 
     // Map database structured fields to data object expected by frontend
     const data = {
+      id: portfolio._id.toString(),
       name: portfolio.name || "",
       title: portfolio.title || "",
       about: portfolio.about || "",
@@ -388,6 +460,68 @@ app.post("/api/portfolio", requireAuth, async (req, res) => {
       description: description
     });
     await historyEntry.save();
+
+    // Sync updated data directly to mockData.ts in the codebase
+    try {
+      const mockDataPath = path.join(projectRoot, "src/data/mockData.ts");
+      const mockDataContent = `export interface PortfolioData {
+  id?: string;
+  name: string;
+  title: string;
+  about: string;
+  photo?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  skills: string[];
+  projects: {
+    title: string;
+    description: string;
+    tags: string[];
+    link: string;
+    liveLink?: string;
+    imageUrl?: string;
+  }[];
+  experience: {
+    role: string;
+    company: string;
+    duration: string;
+    description: string;
+  }[];
+  education: {
+    degree: string;
+    school: string;
+    year: string;
+  }[];
+  socialLinks: { platform: string; url: string }[];
+  certifications?: {
+    name: string;
+    issuer: string;
+    date: string;
+    imageUrl?: string;
+    credentialUrl?: string;
+  }[];
+  achievements?: string[];
+  languages?: { name: string; level: string }[];
+  designSettings?: {
+    themeMode?: "dark" | "light";
+    accentColor?: string;
+    animationsEnabled?: boolean;
+    scanlinesEnabled?: boolean;
+    showOpportunitiesBadge?: boolean;
+    opportunitiesText?: string;
+    customCss?: string;
+  };
+}
+
+export const defaultPortfolioData: PortfolioData = ${JSON.stringify(data, null, 2)};
+`;
+      await fs.writeFile(mockDataPath, mockDataContent, "utf-8");
+      console.log(`[Codebase Sync] Successfully synced changes to mockData.ts at ${mockDataPath}`);
+    } catch (fsErr) {
+      console.error("[Codebase Sync] Failed to write mockData.ts on disk:", fsErr.message);
+    }
 
     console.log(`[Portfolio] Saved and snapshot created for user ${userId} — keys: ${Object.keys(data).join(", ")}`);
     return res.status(200).json({ 
@@ -670,9 +804,7 @@ Respond with raw JSON only.`;
     const modelsToTry = [
       "gemini-2.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.0-pro"
+      "gemini-1.5-flash"
     ];
 
     let result = null;
@@ -873,6 +1005,71 @@ app.post("/api/portfolio/history/revert", requireAuth, async (req, res) => {
   }
 });
 
+app.post("/api/portfolio/contact", async (req, res) => {
+  const { portfolioId, name, email, message } = req.body;
+  if (!portfolioId || !name || !email || !message) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+  try {
+    const notification = new Notification({
+      portfolio_id: portfolioId,
+      name,
+      email,
+      message
+    });
+    await notification.save();
+    return res.json({ message: "Message submitted successfully" });
+  } catch (err) {
+    console.error("Submit contact error", err);
+    return res.status(500).json({ message: "Failed to submit message", error: err.message });
+  }
+});
+
+app.get("/api/portfolio/notifications", requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const portfolio = await Portfolio.findOne({ user_id: userId });
+    if (!portfolio) {
+      return res.status(404).json({ message: "Portfolio not found" });
+    }
+    const notifications = await Notification.find({ portfolio_id: portfolio._id })
+      .sort({ created_at: -1 });
+    return res.json({ notifications });
+  } catch (err) {
+    console.error("Get notifications error", err);
+    return res.status(500).json({ message: "Failed to fetch notifications" });
+  }
+});
+
+app.post("/api/portfolio/notifications/read", requireAuth, async (req, res) => {
+  const { notificationId } = req.body;
+  try {
+    await Notification.findByIdAndUpdate(notificationId, { $set: { is_read: true } });
+    return res.json({ message: "Marked as read" });
+  } catch (err) {
+    console.error("Mark read notification error", err);
+    return res.status(500).json({ message: "Failed to update notification" });
+  }
+});
+
+app.post("/api/portfolio/notifications/clear", requireAuth, async (req, res) => {
+  const { notificationId } = req.body;
+  try {
+    if (notificationId) {
+      await Notification.findByIdAndDelete(notificationId);
+    } else {
+      const portfolio = await Portfolio.findOne({ user_id: req.user.id });
+      if (portfolio) {
+        await Notification.deleteMany({ portfolio_id: portfolio._id });
+      }
+    }
+    return res.json({ message: "Cleared successfully" });
+  } catch (err) {
+    console.error("Clear notifications error", err);
+    return res.status(500).json({ message: "Failed to clear notifications" });
+  }
+});
+
 // Recursively read all files in a directory (excluding node_modules, dist, etc.)
 async function scanDirectory(dir, baseDir = dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -915,15 +1112,397 @@ async function scanDirectory(dir, baseDir = dir) {
   return filesMap;
 }
 
-app.get("/api/portfolio/codebase-files", async (req, res) => {
+async function handleCodebaseFiles(req, res) {
   try {
-    const files = await scanDirectory(projectRoot);
+    const portfolioData = req.body?.portfolioData || req.query?.portfolioData || null;
+    const templateId = req.body?.templateId || req.query?.templateId || "minimalist";
+    const isDark = req.body?.isDark !== undefined ? req.body.isDark : true;
+    const themeColor = req.body?.themeColor || "hsl(190 95% 55%)";
+    const sectionOrder = req.body?.sectionOrder || [];
+
+    const files = {};
+
+    // 1. Load component and CSS files dynamically from builder project
+    const rendererPath = path.join(projectRoot, "src/components/PortfolioRenderer.tsx");
+    const cssPath = path.join(projectRoot, "src/index.css");
+    
+    const rendererContent = await fs.readFile(rendererPath, "utf-8");
+    const cssContent = await fs.readFile(cssPath, "utf-8");
+
+    // 2. Define package.json
+    files["package.json"] = JSON.stringify({
+      name: "my-react-portfolio",
+      private: true,
+      version: "1.0.0",
+      type: "module",
+      scripts: {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+      },
+      dependencies: {
+        "clsx": "^2.1.1",
+        "framer-motion": "^12.34.0",
+        "lucide-react": "^0.462.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "tailwind-merge": "^2.6.0",
+        "tailwindcss-animate": "^1.0.7"
+      },
+      devDependencies: {
+        "@types/react": "^18.3.23",
+        "@types/react-dom": "^18.3.7",
+        "@vitejs/plugin-react": "^4.3.4",
+        "autoprefixer": "^10.4.21",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^3.4.17",
+        "typescript": "^5.8.3",
+        "vite": "^5.4.19"
+      }
+    }, null, 2);
+
+    // 3. Define tailwind.config.js with ESM style matching builder configuration
+    files["tailwind.config.js"] = `import tailwindcssAnimate from "tailwindcss-animate";
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(40px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "slide-in-right": {
+          "0%": { transform: "translateX(100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        "typing": {
+          "0%": { width: "0" },
+          "100%": { width: "100%" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.6s ease-out forwards",
+        "fade-in-up": "fade-in-up 0.8s ease-out forwards",
+        "scale-in": "scale-in 0.3s ease-out",
+        "slide-in-right": "slide-in-right 0.3s ease-out",
+      },
+    },
+  },
+  plugins: [tailwindcssAnimate],
+};
+`;
+
+    // 4. Define postcss.config.js
+    files["postcss.config.js"] = `export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+`;
+
+    // 5. Define vite.config.ts
+    files["vite.config.ts"] = `import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+});
+`;
+
+    // 6. Define tsconfig.json
+    files["tsconfig.json"] = `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "noFallthroughCasesInSwitch": false,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
+`;
+
+    // 7. Define .gitignore
+    files[".gitignore"] = `# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Output directory
+dist/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+`;
+
+    // 8. Define index.html
+    const userSafeName = (portfolioData?.name || "Personal").replace(/"/g, '&quot;');
+    files["index.html"] = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✨</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${userSafeName} | Portfolio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`;
+
+    // 9. Define src/main.tsx
+    files["src/main.tsx"] = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+`;
+
+    // 10. Define src/vite-env.d.ts
+    files["src/vite-env.d.ts"] = `/// <reference types="vite/client" />`;
+
+    // 11. Define src/index.css
+    files["src/index.css"] = cssContent;
+
+    // 12. Define src/components/PortfolioRenderer.tsx
+    files["src/components/PortfolioRenderer.tsx"] = rendererContent;
+
+    // 13. Define src/data/mockData.ts
+    const finalData = portfolioData || {
+      name: "Your Name",
+      title: "Your Title",
+      about: "About me...",
+      skills: [],
+      projects: [],
+      experience: [],
+      education: [],
+      socialLinks: [],
+      designSettings: {
+        themeMode: "dark",
+        accentColor: "hsl(190 95% 55%)",
+        animationsEnabled: true,
+        scanlinesEnabled: true,
+        showOpportunitiesBadge: true,
+        opportunitiesText: "AVAILABLE FOR OPPORTUNITIES",
+        customCss: ""
+      }
+    };
+
+    files["src/data/mockData.ts"] = `export interface PortfolioData {
+  name: string;
+  title: string;
+  about: string;
+  photo?: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  skills: string[];
+  projects: {
+    title: string;
+    description: string;
+    tags: string[];
+    link: string;
+    liveLink?: string;
+    imageUrl?: string;
+  }[];
+  experience: {
+    role: string;
+    company: string;
+    duration: string;
+    description: string;
+  }[];
+  education: {
+    degree: string;
+    school: string;
+    year: string;
+  }[];
+  socialLinks: { platform: string; url: string }[];
+  certifications?: {
+    name: string;
+    issuer: string;
+    date: string;
+    imageUrl?: string;
+    credentialUrl?: string;
+  }[];
+  achievements?: string[];
+  languages?: { name: string; level: string }[];
+  designSettings?: {
+    themeMode?: "dark" | "light";
+    accentColor?: string;
+    animationsEnabled?: boolean;
+    scanlinesEnabled?: boolean;
+    showOpportunitiesBadge?: boolean;
+    opportunitiesText?: string;
+    customCss?: string;
+  };
+}
+
+export const defaultPortfolioData: PortfolioData = ${JSON.stringify(finalData, null, 2)};
+`;
+
+    // 14. Define src/App.tsx
+    files["src/App.tsx"] = `import { useState } from "react";
+import PortfolioRenderer from "./components/PortfolioRenderer";
+import { defaultPortfolioData } from "./data/mockData";
+
+function App() {
+  const [data] = useState(defaultPortfolioData);
+
+  return (
+    <PortfolioRenderer
+      templateId="${templateId}"
+      data={data}
+      isDark={${isDark}}
+      themeColor="${themeColor}"
+      sectionOrder={${JSON.stringify(sectionOrder)}}
+      isPreview={false}
+    />
+  );
+}
+
+export default App;
+`;
+
     return res.json({ files });
   } catch (err) {
-    console.error("Failed to scan directory:", err);
+    console.error("Failed to generate codebase files:", err);
     return res.status(500).json({ message: "Failed to read codebase files", error: err.message });
   }
-});
+}
+
+app.post("/api/portfolio/codebase-files", handleCodebaseFiles);
+app.get("/api/portfolio/codebase-files", handleCodebaseFiles);
 
 app.post("/api/ai/edit-code", async (req, res) => {
   const { portfolioData, message } = req.body;
@@ -1021,8 +1600,7 @@ Respond with raw JSON only.`;
     const modelsToTry = [
       "gemini-2.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-1.5-pro"
+      "gemini-1.5-flash"
     ];
 
     let result = null;
@@ -1138,6 +1716,63 @@ Respond with raw JSON only.`;
   }
 });
 
+
+app.post("/api/ai/portfolio-chat", async (req, res) => {
+  const { portfolioData, message, chatHistory } = req.body;
+  if (!portfolioData || !message) {
+    return res.status(400).json({ message: "portfolioData and message are required" });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "your-gemini-api-key-here" || apiKey.trim() === "") {
+    return res.status(500).json({ message: "Gemini API key is not configured on server" });
+  }
+
+  try {
+    const compactData = {
+      name: portfolioData.name,
+      title: portfolioData.title,
+      about: portfolioData.about,
+      skills: portfolioData.skills,
+      projects: (portfolioData.projects || []).map(p => ({ title: p.title, description: p.description, tags: p.tags })),
+      experience: (portfolioData.experience || []).map(e => ({ role: e.role, company: e.company, duration: e.duration, description: e.description })),
+      education: (portfolioData.education || []).map(edu => ({ degree: edu.degree, school: edu.school, year: edu.year })),
+      socialLinks: portfolioData.socialLinks,
+      certifications: (portfolioData.certifications || []).map(c => ({ name: c.name, issuer: c.issuer, date: c.date })),
+      achievements: portfolioData.achievements,
+      languages: portfolioData.languages
+    };
+
+    const historyPrompt = (chatHistory || [])
+      .map(m => `${m.role === "visitor" ? "Visitor" : "AI avatar of " + portfolioData.name}: ${m.text}`)
+      .join("\n");
+
+    const systemPrompt = `You are the friendly, professional, and conversational AI Avatar of ${portfolioData.name}. 
+Your goal is to answer a visitor's question on your portfolio website.
+Always represent yourself as the developer in the first person (use "I", "me", "my", "we").
+Be concise, clear, and professional. 
+Do not make up information that is not supported by your portfolio data. If you don't know the answer or if it's not in your credentials, state it politely in character.
+
+Developer Portfolio Data:
+${JSON.stringify(compactData, null, 2)}
+
+Recent Conversation History:
+${historyPrompt}
+
+New Question from Visitor: "${message}"
+AI Response (concise, conversational, first-person):`;
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await model.generateContent(systemPrompt);
+    const replyText = result.response.text().trim();
+
+    return res.json({ reply: replyText });
+  } catch (err) {
+    console.error("AI portfolio chat error:", err);
+    return res.status(500).json({ message: "Failed to fetch response from AI avatar", error: err.message });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Auth server running on http://localhost:${port}`);

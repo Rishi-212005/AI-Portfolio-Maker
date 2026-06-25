@@ -1,50 +1,49 @@
 export interface PortfolioData {
-  // Basic Info
+  id?: string;
   name: string;
   title: string;
   about: string;
-  photo?: string;          // base64 data-URL or hosted URL
+  photo?: string;
   email?: string;
   phone?: string;
   location?: string;
   website?: string;
-
-  // Professional
   skills: string[];
   projects: {
+    _id?: string;
     title: string;
     description: string;
     tags: string[];
     link: string;
     liveLink?: string;
-    imageUrl?: string;     // project preview image (base64 or URL)
+    imageUrl?: string;
   }[];
   experience: {
+    _id?: string;
     role: string;
     company: string;
     duration: string;
     description: string;
   }[];
   education: {
+    _id?: string;
     degree: string;
     school: string;
     year: string;
   }[];
-
-  // Extras
-  socialLinks: { platform: string; url: string }[];
+  socialLinks: { _id?: string; platform: string; url: string }[];
   certifications?: {
-    name: string;
-    issuer: string;
+    _id?: string;
+    name?: string;
+    issuer?: string;
     date: string;
-    imageUrl?: string;      // certificate image/badge (base64 or URL)
-    credentialUrl?: string; // verify link
+    imageUrl?: string;
+    credentialUrl?: string;
   }[];
   achievements?: string[];
-  languages?: { name: string; level: string }[];
-
-  // Custom Design Customize Settings
+  languages?: { _id?: string; name: string; level: string }[];
   designSettings?: {
+    _id?: string;
     themeMode?: "dark" | "light";
     accentColor?: string;
     animationsEnabled?: boolean;
@@ -53,121 +52,192 @@ export interface PortfolioData {
     opportunitiesText?: string;
     customCss?: string;
   };
+  templateId?: string;
+  sectionOrder?: string[];
 }
 
 export const defaultPortfolioData: PortfolioData = {
-  name: "Sai Rishi Kumar Vedi",
-  title: "Full-Stack Developer & Cybersecurity Enthusiast",
-  about:
-    "Passionate developer with experience building secure, scalable web applications and e-governance portals. I specialize in full-stack engineering, secure software development, and modern cloud database architectures.",
-  email: "sairishikumarvedi@gmail.com",
-  phone: "+91 98765 43210",
-  location: "Ananthapuramu, Andhra Pradesh, India",
-  website: "https://rishi-212005.github.io/Personel-Portfolio/",
-  designSettings: {
-    themeMode: "dark",
-    accentColor: "hsl(190 95% 55%)",
-    animationsEnabled: true,
-    scanlinesEnabled: true,
-    showOpportunitiesBadge: true,
-    opportunitiesText: "AVAILABLE FOR OPPORTUNITIES",
-    customCss: ""
+  "id": "6a36901eb0d497b2bdbcecb8",
+  "name": "SAI RISHI KUMAR VEDI",
+  "title": "Full-stack and AI/ML Engineering Student",
+  "about": "Full-stack and AI/ML engineering student with hands-on experience building production-grade web applications, REST APIs, and machine learning pipelines. Deployed AI models at an EdTech startup, interned with the Government of India on live e-Governance systems, and shipped a multi-modal deep learning solution. Skilled end-to-end across model training, scalable backend development, and real-world deployment.",
+  "photo": "",
+  "email": "sairishikumar.2005@gmail.com",
+  "phone": "+91 9390455681",
+  "location": "Anantapur, India",
+  "website": "",
+  "skills": [
+    "JavaScript",
+    "Python",
+    "PHP",
+    "SQL",
+    "TypeScript",
+    "React.js",
+    "HTML5",
+    "CSS3",
+    "Tailwind CSS",
+    "Bootstrap",
+    "Node.js",
+    "Express.js",
+    "FastAPI",
+    "MySQL",
+    "PostgreSQL",
+    "MongoDB",
+    "REST APIs",
+    "Machine Learning",
+    "Deep Learning",
+    "Computer Vision",
+    "Natural Language Processing",
+    "TensorFlow",
+    "Scikit-learn",
+    "EfficientNetB0",
+    "TF-IDF",
+    "OCR",
+    "Model Training",
+    "Feature Engineering",
+    "Data Preprocessing",
+    "Hyperparameter Tuning",
+    "Git",
+    "GitHub",
+    "CI/CD",
+    "VS Code",
+    "Scalable Architecture",
+    "System Reliability",
+    "Agile Development",
+    "Stakeholder Collaboration"
+  ],
+  "projects": [
+    {
+      "title": "Academic Authenticator - AI Certificate Verification",
+      "description": "Built an AI-driven document verification system using OCR and computer vision to detect forged academic certificates, reducing manual verification effort by over 70%. Developed REST APIs for automated fraud detection, enabling data-driven authenticity analysis across 500+ certificate types.",
+      "tags": [
+        "Python",
+        "OCR",
+        "Node.js",
+        "MySQL",
+        "REST APIs"
+      ],
+      "link": "https://github.com/Rishi-212005/ACADEMIC-AUTHENTICATOR",
+      "liveLink": "https://academicauthenticator.free.nf",
+      "imageUrl": "",
+      "_id": "6a3b8380eefa5034645d524e"
+    },
+    {
+      "title": "ML Smart Price Prediction - Hybrid Image and Text Model",
+      "description": "Designed a multi-modal deep learning model fusing EfficientNetB0 (computer vision) and NLP-based TF-IDF embeddings to predict product prices across 10,000+ listings with low MAE. Engineered end-to-end ML pipelines for parallel image processing, text vectorization, and feature serialization, significantly reducing inference overhead.",
+      "tags": [
+        "Python",
+        "TensorFlow",
+        "Deep Learning",
+        "EfficientNetB0",
+        "TF-IDF",
+        "FastAPI"
+      ],
+      "link": "https://github.com/Rishi-212005/ML-Smart-Price-Prediction",
+      "liveLink": "",
+      "imageUrl": "",
+      "_id": "6a3b8380eefa5034645d524f"
+    },
+    {
+      "title": "Campus Internship and Placement Portal",
+      "description": "Architected a full-stack platform with five role-based dashboards and Supabase Realtime integration for live application tracking and automated notifications across user roles.",
+      "tags": [
+        "React 18",
+        "TypeScript",
+        "Tailwind CSS",
+        "Supabase",
+        "REST APIs"
+      ],
+      "link": "https://github.com/Rishi-212005/InternConnect-Campus-Portal",
+      "liveLink": "",
+      "imageUrl": "",
+      "_id": "6a3b8380eefa5034645d5250"
+    }
+  ],
+  "experience": [
+    {
+      "role": "AI/ML Intern",
+      "company": "Saral Vidhya",
+      "duration": "May 2026 - Jul 2026",
+      "description": "Trained machine learning and deep learning models for three EdTech products - Saral Vidhya (adaptive learning), Nirnayah (AI-powered academic grading), and Bodhana (intelligent tutoring assistant). Built FastAPI backend with JWT authentication and CRUD operations for model inference; deployed saralvidhya.com (React) with real-time student performance analytics.",
+      "_id": "6a3b8380eefa5034645d524c"
+    },
+    {
+      "role": "Web Development Intern",
+      "company": "National Informatics Centre (NIC), Govt. of India",
+      "duration": "May 2025 - Jul 2025",
+      "description": "Developed CRUD modules for a live e-Governance platform using PHP, MySQL, and JavaScript; enforced role-based authentication following government security standards. Structured REST APIs and backend validation logic, improving system efficiency and maintainability across cross-functional teams.",
+      "_id": "6a3b8380eefa5034645d524d"
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Tech Computer Science",
+      "school": "JNTU Anantapur",
+      "year": "2023 – 2027",
+      "_id": "6a3b8380eefa5034645d524b"
+    }
+  ],
+  "socialLinks": [
+    {
+      "platform": "GitHub",
+      "url": "",
+      "_id": "6a3b8380eefa5034645d5249"
+    },
+    {
+      "platform": "LinkedIn",
+      "url": "",
+      "_id": "6a3b8380eefa5034645d524a"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5246"
+    },
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5247"
+    },
+    {
+      "name": "",
+      "issuer": "",
+      "date": "",
+      "imageUrl": "",
+      "credentialUrl": "",
+      "_id": "6a3b8380eefa5034645d5248"
+    }
+  ],
+  "achievements": [],
+  "languages": [],
+  "designSettings": {
+    "themeMode": "dark",
+    "accentColor": "hsl(190 95% 55%)",
+    "animationsEnabled": true,
+    "scanlinesEnabled": true,
+    "showOpportunitiesBadge": true,
+    "opportunitiesText": "AVAILABLE FOR OPPORTUNITIES",
+    "customCss": "",
+    "_id": "6a3b8380eefa5034645d5245"
   },
-  skills: [
-    "React", "TypeScript", "JavaScript",
-    "Node.js", "Express", "PHP", "Python",
-    "MySQL", "MongoDB",
-    "TailwindCSS", "Git", "Linux",
-  ],
-  projects: [
-    {
-      title: "Academia Authenticator",
-      description:
-        "An AI-powered academic verification system with OCR data extraction and secure credential parsing. Reduces manual verification time by 80%.",
-      tags: ["Python", "OCR", "FastAPI", "MongoDB"],
-      link: "https://github.com/Rishi-212005/Academia-Authenticator",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-    {
-      title: "AI Raw Material Marketplace",
-      description:
-        "A secure B2B full-stack marketplace connecting manufacturers with verified raw material suppliers using AI-driven matching.",
-      tags: ["React", "Node.js", "Express", "MySQL"],
-      link: "https://github.com/Rishi-212005/AI-Marketplace",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-    {
-      title: "InternConnect Campus Portal",
-      description:
-        "A centralized platform to streamline internship application workflows, evaluations, and certifications for 500+ students.",
-      tags: ["PHP", "MySQL", "Bootstrap", "JS"],
-      link: "https://github.com/Rishi-212005/InternConnect",
-      liveLink: "https://rishi-212005.github.io/Personel-Portfolio/",
-      imageUrl: "",
-    },
-  ],
-  experience: [
-    {
-      role: "Software Engineer Intern",
-      company: "National Informatics Centre (NIC)",
-      duration: "May 2025 – Jul 2025",
-      description:
-        "Designed e-governance system workflows, implemented RBAC authentication modules, and optimized secure backend queries in PHP/MySQL. Collaborated with senior engineers on production-grade government portals.",
-    },
-  ],
-  education: [
-    {
-      degree: "B.Tech Computer Science & Engineering",
-      school: "JNTU Anantapur",
-      year: "2023 – 2027",
-    },
-    {
-      degree: "Intermediate – MPC (Science)",
-      school: "Narayana Junior College",
-      year: "2021 – 2023",
-    },
-  ],
-  socialLinks: [
-    { platform: "GitHub", url: "https://github.com/Rishi-212005" },
-    { platform: "LinkedIn", url: "https://linkedin.com/in/sairishikumarvedi" },
-    { platform: "Twitter", url: "https://twitter.com" },
-  ],
-  certifications: [
-    {
-      name: "NIC e-Governance Internship Certificate",
-      issuer: "National Informatics Centre",
-      date: "July 2025",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-    {
-      name: "Cybersecurity Fundamentals",
-      issuer: "Infosys Springboard",
-      date: "November 2024",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-    {
-      name: "Responsive Web Design",
-      issuer: "freeCodeCamp",
-      date: "August 2024",
-      imageUrl: "",
-      credentialUrl: "",
-    },
-  ],
-  achievements: [
-    "🏆 Top performer in JNTU Hackathon 2024 – secured 2nd place among 120 teams",
-    "📜 Completed NIC e-Governance internship with distinction",
-    "🎯 Built 3 full-stack projects used by 500+ real users",
-    "🔒 Completed Ethical Hacking course with hands-on CTF challenges",
-  ],
-  languages: [
-    { name: "Telugu", level: "Native" },
-    { name: "English", level: "Professional" },
-    { name: "Hindi", level: "Conversational" },
-  ],
+  "templateId": "retro-terminal",
+  "sectionOrder": [
+    "about",
+    "skills",
+    "projects",
+    "experience",
+    "education",
+    "certifications",
+    "contact"
+  ]
 };
 
 export const templateList = [
