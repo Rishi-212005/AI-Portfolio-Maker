@@ -1857,13 +1857,15 @@ const CommonContactForm = ({
   inputStyle, 
   buttonColor, 
   buttonTextColor,
-  portfolioId
+  portfolioId,
+  onMessageSent
 }: { 
   buttonStyle?: string; 
   inputStyle?: string; 
   buttonColor?: string; 
   buttonTextColor?: string; 
   portfolioId?: string;
+  onMessageSent?: (name: string, email: string, message: string) => void;
 }) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1881,6 +1883,7 @@ const CommonContactForm = ({
     // Fallback if no backend connection is active (e.g. standalone codebase download)
     if (!portfolioId || !API_URL) {
       setTimeout(() => {
+        onMessageSent?.(name, email, message);
         setSubmitted(true);
         setName("");
         setEmail("");
@@ -1905,6 +1908,7 @@ const CommonContactForm = ({
         })
       });
       if (res.ok) {
+        onMessageSent?.(name, email, message);
         setSubmitted(true);
         setName("");
         setEmail("");
