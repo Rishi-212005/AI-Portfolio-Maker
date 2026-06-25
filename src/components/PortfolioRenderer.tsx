@@ -37,6 +37,15 @@ import {
 } from "lucide-react";
 import type { PortfolioData } from "@/data/mockData";
 
+export interface NotificationItem {
+  _id: string;
+  name: string;
+  email: string;
+  message: string;
+  is_read: boolean;
+  createdAt: string;
+}
+
 interface Props {
   templateId: string;
   data: PortfolioData;
@@ -1313,7 +1322,7 @@ const AdminControlBar = ({
 const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectionOrder, isPreview = false, onDownloadCode }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
-  const [notifications, setNotifications] = useState<{ _id: string; name: string; email: string; message: string; is_read: boolean; createdAt: string }[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -1397,9 +1406,9 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
       const localData = localStorage.getItem('local_portfolio_notifications');
       if (localData) {
         try {
-          const list = JSON.parse(localData);
+          const list = JSON.parse(localData) as NotificationItem[];
           setNotifications(list);
-          setUnreadCount(list.filter((n: any) => !n.is_read).length);
+          setUnreadCount(list.filter((n: NotificationItem) => !n.is_read).length);
         } catch (e) {
           console.warn("Failed to parse local notifications", e);
         }
@@ -1470,11 +1479,11 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
       const localData = localStorage.getItem('local_portfolio_notifications');
       if (localData) {
         try {
-          const list = JSON.parse(localData);
-          const updated = list.map((n: any) => n._id === id ? { ...n, is_read: true } : n);
+          const list = JSON.parse(localData) as NotificationItem[];
+          const updated = list.map((n: NotificationItem) => n._id === id ? { ...n, is_read: true } : n);
           localStorage.setItem('local_portfolio_notifications', JSON.stringify(updated));
           setNotifications(updated);
-          setUnreadCount(updated.filter((n: any) => !n.is_read).length);
+          setUnreadCount(updated.filter((n: NotificationItem) => !n.is_read).length);
         } catch (e) {
           console.warn(e);
         }
@@ -1502,11 +1511,11 @@ const PortfolioRenderer = ({ templateId, data, isDark = true, themeColor, sectio
       const localData = localStorage.getItem('local_portfolio_notifications');
       if (localData) {
         try {
-          const list = JSON.parse(localData);
-          const updated = list.filter((n: any) => n._id !== id);
+          const list = JSON.parse(localData) as NotificationItem[];
+          const updated = list.filter((n: NotificationItem) => n._id !== id);
           localStorage.setItem('local_portfolio_notifications', JSON.stringify(updated));
           setNotifications(updated);
-          setUnreadCount(updated.filter((n: any) => !n.is_read).length);
+          setUnreadCount(updated.filter((n: NotificationItem) => !n.is_read).length);
         } catch (e) {
           console.warn(e);
         }
@@ -2073,7 +2082,13 @@ const SkillBadge = ({ skill, themeColor }: { skill: string; themeColor: string }
 
 // ==================== DESIGN UPGRADES INJECTIONS ====================
 interface FlipCardProps {
-  cert: any;
+  cert: {
+    name?: string;
+    issuer?: string;
+    date: string;
+    imageUrl?: string;
+    credentialUrl?: string;
+  };
   themeColor: string;
   isDark: boolean;
   muted: string;
